@@ -18,8 +18,7 @@ header {
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(10px);
     color: #333;
-    padding: 1.5rem 0;
-    text-align: center;
+    padding: 1rem 0;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     position: fixed;
     top: 0;
@@ -29,28 +28,37 @@ header {
     border-bottom: 1px solid #e5e5e5;
 }
 
-header h1 {
-    font-size: 2.2rem;
+.navbar {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar-brand h1 {
+    font-size: 1.8rem;
     font-weight: 600;
-    margin-bottom: 1rem;
+    margin: 0;
     color: #111;
     letter-spacing: -0.025em;
 }
 
-nav ul {
+.navbar-nav ul {
     list-style: none;
     padding: 0;
+    margin: 0;
     display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
+    align-items: center;
     gap: 0.5rem;
 }
 
-nav ul li {
+.navbar-nav ul li {
     margin: 0;
 }
 
-nav ul li a {
+.navbar-nav ul li a {
     color: #666;
     text-decoration: none;
     padding: 0.6rem 1rem;
@@ -63,12 +71,12 @@ nav ul li a {
     display: inline-block;
 }
 
-nav ul li a:hover {
+.navbar-nav ul li a:hover {
     background: #f0f0f0;
     color: #333;
 }
 
-nav ul li a.active {
+.navbar-nav ul li a.active {
     background: #333;
     color: white;
 }
@@ -79,7 +87,7 @@ main {
     background: white;
     padding: 3rem 4rem;
     position: relative;
-    margin-top: 160px;
+    margin-top: 100px;
     margin-bottom: 3rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     border: 1px solid #e5e5e5;
@@ -345,19 +353,30 @@ a:hover {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    main {
-        margin: 140px 1rem 1rem 1rem;
-        padding: 2rem;
-    }
-    
-    header h1 {
-        font-size: 1.8rem;
-    }
-    
-    nav ul {
+    .navbar {
         flex-direction: column;
-        align-items: center;
+        gap: 1rem;
+        padding: 0 1rem;
+    }
+    
+    .navbar-brand h1 {
+        font-size: 1.6rem;
+    }
+    
+    .navbar-nav ul {
+        flex-wrap: wrap;
+        justify-content: center;
         gap: 0.3rem;
+    }
+    
+    .navbar-nav ul li a {
+        padding: 0.5rem 0.8rem;
+        font-size: 0.85rem;
+    }
+    
+    main {
+        margin: 120px 1rem 1rem 1rem;
+        padding: 2rem;
     }
     
     section h2 {
