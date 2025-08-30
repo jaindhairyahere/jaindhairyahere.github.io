@@ -45,6 +45,16 @@ header {
     letter-spacing: -0.025em;
 }
 
+.navbar-brand .brand-link {
+    color: #111;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.navbar-brand .brand-link:hover {
+    color: #007acc;
+}
+
 .navbar-nav ul {
     list-style: none;
     padding: 0;
