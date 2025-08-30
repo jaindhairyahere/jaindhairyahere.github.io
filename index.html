@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dhairya Jain | Personal Website</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Dhairya Jain</h1>
+        <nav>
+            <ul>
+                <li><a href="#" data-page="about" class="nav-link active">About Me</a></li>
+                <li><a href="#" data-page="experience" class="nav-link">Experience</a></li>
+                <li><a href="#" data-page="blogs" class="nav-link">Blogs</a></li>
+                <li><a href="#" data-page="papers" class="nav-link">Paper Shelf</a></li>
+                <li><a href="#" data-page="talks" class="nav-link">Talks</a></li>
+                <li><a href="#" data-page="resume" class="nav-link">Resume</a></li>
+                <li><a href="#" data-page="contact" class="nav-link">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <div id="about" class="page-section active">
+            <section>
+                <div style="display: flex; align-items: flex-start; gap: 2rem; margin-bottom: 2rem;">
+                    <div style="flex-shrink: 0;">
+                        <img src="images/profile-new.jpg" alt="Dhairya Jain" style="width: 280px; height: 280px; object-fit: contain; border-radius: 50%; border: 3px solid #ddd; background-color: #f8f8f8;">
+                    </div>
+                    <div style="flex: 1;">
+                        <p style="font-size: 1.1rem; line-height: 1.7; margin: 0;">
+                            My path into technology began with a solid foundation in quantitative analysis through my Economics degree at IIT Bombay, complemented by a minor in Industrial Engineering and Operations Research. This interdisciplinary background built a strong statistical foundation that proved invaluable when I discovered my passion for building software systems. What started as curiosity about applying mathematical models to real-world problems evolved into leading technical teams and architecting scalable solutions.
+                        </p>
+                    </div>
+                </div>
+                <p style="font-size: 1.1rem; line-height: 1.7; margin-bottom: 1.5rem;">
+                    Early in my journey, I took on leadership roles that shaped my approach to technology. As Manager of the Web Team at the Student Alumni Relations Cell, I led a five-member team through complex technical challenges, from implementing OAuth 2.0 authentication systems to architecting solutions that served over 10,000 alumni. This experience taught me that great technology isn't just about elegant algorithms—it's about understanding user needs, managing technical debt, and building systems that teams can maintain and scale.
+                </p>
+                <p style="font-size: 1.1rem; line-height: 1.7; margin-bottom: 1.5rem;">
+                    My technical foundation deepened through diverse experiences across domains. At WorldQuant, I worked on high-frequency trading systems where microseconds matter, implementing Cython-based interfaces that achieved 100x performance improvements. This exposure to low-latency systems, combined with my statistical background, gave me a deep appreciation for the mathematical elegance underlying efficient distributed systems. Whether optimizing portfolio algorithms or building fault-tolerant storage solutions, I've learned to approach complex technical problems with both analytical rigor and practical engineering insight.
+                </p>
+                <p style="font-size: 1.1rem; line-height: 1.7;">
+                    Today at Microsoft, I focus on building robust <strong>distributed systems</strong> and <strong>high-throughput infrastructure</strong> for Azure Storage. My work spans everything from garbage collection processes for blob storage to implementing state machines for automatic recovery systems. The combination of my quantitative background, leadership experience, and hands-on engineering has equipped me to tackle the complex trade-offs inherent in large-scale systems—whether that's optimizing P75 latency for high-performance workloads or orchestrating components across multiple service planes.
+                </p>
+            </section>
+        </div>
+
+        <div id="experience" class="page-section">
+            <section>
+                <h2>Work Experience & Projects</h2>
+                
+                <div class="subsection">
+                    <h3>Professional Experience</h3>
+                    <div class="job">
+                        <h4>Software Engineer II (L-61) — Microsoft India (R & D) Pvt. Ltd.</h4>
+                        <p><em>June 2022 - Present</em></p>
+                        <ul>
+                            <li>Working in Azure Storage - Blob team to develop the world's leading cloud-based object storage system</li>
+                            <li>Pioneering the latest scaled account feature & SKU cancellation enabling 99% PB-sized accounts</li>
+                            <li>Contributing to high throughput feature and garbage collection processes for Block Blob & Append Blob</li>
+                            <li>Driving Get Blob API latency improvements to serve P75 in support high performance blob workloads through caching at table server layer</li>
+                            <li>Implementing state machine for automatic blob metadata, storage & LRS-level recovery & savings</li>
+                            <li>Orchestrating components involved in request that path across all of data, control & customer planes</li>
+                        </ul>
+                    </div>
+                    <div class="job">
+                        <h4>Software Development Engineer — Mirana Toys Pvt. Ltd.</h4>
+                        <p><em>May 2022 - June 2022</em></p>
+                        <ul>
+                            <li>Part of a start-up creating IOT enabled smart toys for kids</li>
+                            <li>Implemented a social media engine allowing user login, post creation, and in-game chatting</li>
+                            <li>Created multiple dockerized micro-services and established inter-service communication using message queues</li>
+                        </ul>
+                    </div>
+                    <div class="job">
+                        <h4>Quantitative Researcher & Developer Intern — WorldQuant Research Pvt. Ltd.</h4>
+                        <p><em>May 2021 - July 2021</em></p>
+                        <ul>
+                            <li>Worked on 2 projects in the area of quantitative development using Cython and quantitative research using machine learning</li>
+                            <li>Implemented a high efficiency command line tool for Py.Test for creating a seamless flexible testing workflow</li>
+                            <li>Achieved 100x speed-up by integrating a C++ backend with a Cython-based Python interface</li>
+                            <li>Researched financial algorithms: Time Series, Autocorrelation from Max Entropy & Portfolio Optimization</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3>Notable Projects</h3>
+                    <div class="project">
+                        <h4>Factoid Question-Answering System</h4>
+                        <p><em>Course Project &middot; Mar 2022 - Apr 2022</em></p>
+                        <ul>
+                            <li>Implemented a Bi-directional GRU-based RNN Encoder-Decoder network for Question Answering using Tensorflow/Keras.</li>
+                            <li>Tested the model with multiple attention mechanisms like dot-product attention, Luong Attention, & Bahdanau Attention.</li>
+                            <li>Obtained 73% F1 score, when trained on SQUAD v1.0 FACTOID question-answering data-set, using GLoVE word embeddings.</li>
+                        </ul>
+                    </div>
+                    <div class="project">
+                        <h4>Deep learning in Symbolic Mathematics</h4>
+                        <p><em>Course Research Project &middot; Mar 2022 - Apr 2022</em></p>
+                        <ul>
+                            <li>Terminal project for the course - Deep Learning for Natural Language Processing - under the guidance of Prof. Pushpak Bhattacharya, CSE.</li>
+                            <li>Extended the research done by Facebook AI to learn and predict taylor series transformations of mathematical expressions.</li>
+                            <li>Generated symbolic function dataset using randomized binary trees; optimized the algorithm using dynamic programming.</li>
+                            <li>Experimented with bi-directional LSTM based encoder-decoder network and attention-based transformer models.</li>
+                        </ul>
+                    </div>
+                    <div class="project">
+                        <h4>Google Summer of Code'21 | The R project for Statistical Computing</h4>
+                        <p><em>May 2021 - Aug 2021</em></p>
+                        <ul>
+                            <li>Contributed to PerformanceAnalytics, an R package used for portfolio risk analysis</li>
+                            <li>Created functionality for calculating outlier-anomalous utilities in the Capital Asset Pricing Model</li>
+                            <li>Published a vignette on CRAN to exhibit new features and improved unit tests coverage by 11%</li>
+                            <li>Earned 150+ list of professionals & researchers in making Git-based interactive contributions</li>
+                        </ul>
+                    </div>
+                    <div class="project">
+                        <h4>Manager of the Web Team | Student Alumni Relations Cell | IIT-Bombay</h4>
+                        <p><em>May 2019 - Apr 2021</em></p>
+                        <ul>
+                            <li>Promoted to lead the 5-membered web team in a 3 tier body working closely with the Dean of Alumni & Corporate Relations, IIT-B</li>
+                            <li>Administered & maintained IIT-B domain of the body using Nginx reverse proxy over Gunicorn web servers</li>
+                            <li>Developed an inter-active website for Alumicon with OAuth 2.0 giving 30+ graphics to over 10000+ alumni for networking</li>
+                            <li>Implemented user tagging functionality in the Institute Yearbook 2021 to enrich experience of 3k+ users</li>
+                            <li>Earned 1k+ fresh graduates with personalized yearbooks accounting 50k+ memories by automating pdf building</li>
+                            <li>Benefited 3k+ students by solving 5+ events over the year having a combined budget of INR 1.5+ Million</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3>Education</h3>
+                    <div class="education">
+                        <h4>Indian Institute of Technology (IIT) Bombay</h4>
+                        <p><em>B.Tech in Economics &middot; 2018 - 2022</em></p>
+                        <ul>
+                            <li><strong>Major:</strong> Economics</li>
+                            <li><strong>Minor:</strong> Industrial Engineering and Operations Research </li>
+                            <li><strong>JEE Advanced Rank:</strong> AIR 1,209 (2018)</li>
+                            <li><strong>JEE Mains Rank:</strong> AIR 1,886 (2018)</li>
+                            <li>Relevant Coursework: Data Structures & Algorithms, Database Systems, Machine Learning, Deep Learning for NLP, Operating Systems, Computer Networks</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div id="blogs" class="page-section">
+            <section>
+                <h2>Blogs</h2>
+                <p>A collection of my thoughts and learnings on technology, projects, and experiences.</p>
+                <div class="subsection">
+                    <div class="project">
+                        <h4>Google Summer of Code — Dhairya Jain</h4>
+                        <p><em>June 26, 2021</em></p>
+                        <p>An introductory post about my selection into the Google Summer of Code program with The R Project, and my project on improving the PerformanceAnalytics package.</p>
+                        <a href="https://medium.com/@jaindhairya2001/google-summer-of-code-dhairya-jain-5b4a7a9d0679" target="_blank">Read more on Medium &rarr;</a>
+                    </div>
+                    <div class="project">
+                        <h4>End of a beautiful summer — GSoC @ The R Project</h4>
+                        <p><em>August 18, 2021</em></p>
+                        <p>A summary of my work and contributions during the Google Summer of Code 2021, detailing the outcomes and my experience with The R Project.</p>
+                        <a href="https://medium.com/@jaindhairya2001/end-of-a-beautiful-summer-gsoc-the-r-project-35b361333947" target="_blank">Read more on Medium &rarr;</a>
+                    </div>
+                    <div class="project">
+                        <h4>End Report: Kharagpur Winter of Code 2019–20</h4>
+                        <p><em>January 7, 2020</em></p>
+                        <p>A report on my experience and learnings from participating in the Kharagpur Winter of Code, an open-source program.</p>
+                        <a href="https://medium.com/@jaindhairya2001/end-report-kharagpur-winter-of-code-2019-20-885756e5a58c" target="_blank">Read more on Medium &rarr;</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div id="papers" class="page-section">
+            <section>
+                <h2>Paper Shelf</h2>
+                <p>A collection of research papers and technical documents that have influenced my work and thinking.</p>
+                <div class="paper-categories">
+                    <h3>Distributed Systems</h3>
+                    <ul>
+                        <li><a href="https://raft.github.io/raft.pdf" target="_blank">The Raft Consensus Algorithm</a></li>
+                        <li><a href="https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf" target="_blank">Dynamo: Amazon's Highly Available Key-value Store</a></li>
+                        <li><a href="https://static.googleusercontent.com/media/research.google.com/en//archive/mapreduce-osdi04.pdf" target="_blank">MapReduce: Simplified Data Processing on Large Clusters</a></li>
+                        <li><a href="https://static.googleusercontent.com/media/research.google.com/en//archive/chubby-osdi06.pdf" target="_blank">The Chubby Lock Service for Loosely-Coupled Distributed Systems</a></li>
+                        <li><a href="https://pmg.csail.mit.edu/papers/vr-revisited.pdf" target="_blank">Viewstamped Replication Revisited</a></li>
+                    </ul>
+                    
+                    <h3>Storage Systems</h3>
+                    <ul>
+                        <li><a href="https://static.googleusercontent.com/media/research.google.com/en//archive/gfs-sosp03.pdf" target="_blank">The Google File System</a></li>
+                        <li><a href="https://static.googleusercontent.com/media/research.google.com/en//archive/bigtable-osdi06.pdf" target="_blank">Bigtable: A Distributed Storage System for Structured Data</a></li>
+                        <li><a href="https://sigops.org/s/conferences/sosp/2011/current/2011-Cascais/printable/11-calder.pdf" target="_blank">Windows Azure Storage: A Highly Available Cloud Storage Service</a></li>
+                        <li><a href="https://www.usenix.org/system/files/conference/fast16/fast16-papers-lu.pdf" target="_blank">The Design and Implementation of a Log-Structured File System</a></li>
+                        <li><a href="https://dl.acm.org/doi/pdf/10.1145/1294261.1294278" target="_blank">Amazon S3: A Simple Storage Service</a></li>
+                    </ul>
+                    
+                    <h3>Database Systems</h3>
+                    <ul>
+                        <li><a href="https://static.googleusercontent.com/media/research.google.com/en//archive/spanner-osdi2012.pdf" target="_blank">Spanner: Google's Globally-Distributed Database</a></li>
+                        <li><a href="https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170.pdf" target="_blank">F1: A Distributed SQL Database That Scales</a></li>
+                        <li><a href="https://dl.acm.org/doi/pdf/10.1145/3183713.3196937" target="_blank">Amazon DynamoDB: A Scalable, Predictably Performant, and Fully Managed NoSQL Database</a></li>
+                        <li><a href="https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/41344.pdf" target="_blank">Mesa: Geo-Replicated, Near Real-Time, Scalable Data Warehousing</a></li>
+                        <li><a href="https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/36632.pdf" target="_blank">Dremel: Interactive Analysis of Web-Scale Datasets</a></li>
+                    </ul>
+                    
+                    <h3>Quantitative Finance</h3>
+                    <ul>
+                        <li><a href="https://www.math.ust.hk/~maykwok/courses/ma362/07F/markowitz_JF.pdf" target="_blank">Portfolio Selection - Harry Markowitz</a></li>
+                        <li><a href="https://www.jstor.org/stable/pdf/2975974.pdf" target="_blank">The Capital Asset Pricing Model: Theory and Evidence</a></li>
+                        <li><a href="https://www.cs.princeton.edu/courses/archive/fall09/cos323/papers/black_scholes73.pdf" target="_blank">The Pricing of Options and Corporate Liabilities (Black-Scholes)</a></li>
+                        <li><a href="https://web.stanford.edu/~wfsharpe/art/capm/capm.htm" target="_blank">Capital Asset Prices: A Theory of Market Equilibrium</a></li>
+                        <li><a href="https://faculty.chicagobooth.edu/eugene.fama/research/famafrench.htm" target="_blank">The Cross-Section of Expected Stock Returns (Fama-French)</a></li>
+                    </ul>
+
+                    <h3>Machine Learning & AI</h3>
+                    <ul>
+                        <li><a href="https://arxiv.org/pdf/1706.03762.pdf" target="_blank">Attention Is All You Need (Transformers)</a></li>
+                        <li><a href="https://arxiv.org/pdf/2005.14165.pdf" target="_blank">Language Models are Few-Shot Learners (GPT-3)</a></li>
+                        <li><a href="https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf" target="_blank">Improving Language Understanding by Generative Pre-Training (GPT)</a></li>
+                        <li><a href="https://arxiv.org/pdf/1810.04805.pdf" target="_blank">BERT: Pre-training of Deep Bidirectional Transformers</a></li>
+                        <li><a href="https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf" target="_blank">Deep Reinforcement Learning from Human Preferences</a></li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        <div id="talks" class="page-section">
+            <section>
+                <h2>Talks & Presentations</h2>
+                <p>A selection of internal and external knowledge-sharing sessions and presentations.</p>
+                <div class="subsection">
+                    <div class="project">
+                        <h4>Google File System (2003 SOSP Paper) - Deep Dive Overview</h4>
+                        <p><em>Internal presentation at Microsoft &middot; Year: 2025 (approx.)</em></p>
+                        <ul>
+                            <li>Covered core design goals: scalability, fault tolerance, high throughput over low latency.</li>
+                            <li>Explained master responsibilities: namespace management, lease coordination, chunk metadata.</li>
+                            <li>Walked through write pipeline: client push, primary ordering, secondary replication, commit acks.</li>
+                            <li>Discussed chunk size trade-offs (64MB) and impact on metadata ops and sequential throughput.</li>
+                            <li>Analyzed failure handling: stale replica detection, heartbeat protocol, re-replication triggers.</li>
+                        </ul>
+                        <p>Slides reference file (not publicly embedded here): <code>Google File System (2003 SOSP Paper) Overview.pptx</code></p>
+                    </div>
+                </div>
+                <div class="subsection">
+                    <h3>Interested in more?</h3>
+                    <p>Planned upcoming sessions: Spanner TrueTime semantics, Designing reliable blob storage pipelines, and Practical Raft vs Paxos implementation notes.</p>
+                </div>
+            </section>
+        </div>
+
+        <div id="resume" class="page-section">
+            <section>
+                <h2>Resume</h2>
+                <p>Download my latest resume to get a comprehensive overview of my experience, skills, and accomplishments.</p>
+                <div class="resume-download">
+                    <a href="[Sep 25] Dhairya Jain - Storage.pdf" class="download-link" download>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px; vertical-align: middle;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Download Resume (PDF)
+                    </a>
+                    <p style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">Last updated: September 2025</p>
+                </div>
+                
+                <div class="resume-viewer">
+                    <h3>Resume Preview</h3>
+                    <div class="pdf-container">
+                        <iframe src="[Sep 25] Dhairya Jain - Storage.pdf" 
+                                type="application/pdf" 
+                                width="100%" 
+                                height="800px" 
+                                style="border: 1px solid #ddd; border-radius: 8px;">
+                            <p>Your browser doesn't support PDF viewing. <a href="[Sep 25] Dhairya Jain - Storage.pdf" target="_blank">Click here to download the PDF</a>.</p>
+                        </iframe>
+                    </div>
+                </div>
+                
+                <div class="resume-highlights">
+                    <h3>Quick Highlights</h3>
+                    <ul>
+                        <li><strong>Current Role:</strong> Software Development Engineer at Microsoft</li>
+                        <li><strong>Education:</strong> B.Tech Economics (Minor: Industrial Engineering and Operations Research), IIT Bombay</li>
+                        <li><strong>JEE Ranks:</strong> AIR 1,209 (Advanced), AIR 1,886 (Mains)</li>
+                        <li><strong>Specialization:</strong> Distributed Systems, Low-latency Infrastructure</li>
+                        <li><strong>Notable Achievement:</strong> Google Summer of Code participant with The R Project</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        <div id="contact" class="page-section">
+            <section>
+                <h2>Contact</h2>
+                <p>Feel free to reach out for collaborations, discussions, or opportunities!</p>
+                <div class="contact-links">
+                    <p>Email: <a href="mailto:jaindhairyahere@gmail.com">jaindhairyahere@gmail.com</a></p>
+                    <p>LinkedIn: <a href="https://linkedin.com/in/jain-dhairya/" target="_blank">linkedin.com/in/jain-dhairya/</a></p>
+                    <p>GitHub: <a href="https://github.com/jaindhairyahere" target="_blank">github.com/jaindhairyahere</a></p>
+                </div>
+            </section>
+        </div>
+    </main>
+    <footer>
+        <div class="footer-content">
+            <div class="social-links">
+                <a href="mailto:jaindhairyahere@gmail.com" class="social-icon" title="Email">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </a>
+                <a href="https://linkedin.com/in/jain-dhairya/" class="social-icon" target="_blank" title="LinkedIn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <rect x="2" y="9" width="4" height="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <circle cx="4" cy="4" r="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    </svg>
+                </a>
+                <a href="https://github.com/jaindhairyahere" class="social-icon" target="_blank" title="GitHub">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    </svg>
+                </a>
+            </div>
+            <p class="copyright">&copy; 2025 Dhairya Jain</p>
+        </div>
+    </footer>
+
+    <script>
+        // Single Page Application Logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const pageSection = document.querySelectorAll('.page-section');
+            
+            // Function to show a specific page
+            function showPage(targetPage) {
+                // Hide all pages
+                pageSection.forEach(section => {
+                    section.classList.remove('active');
+                });
+                
+                // Show target page
+                const target = document.getElementById(targetPage);
+                if (target) {
+                    target.classList.add('active');
+                }
+                
+                // Update active nav link
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                });
+                
+                const activeLink = document.querySelector(`[data-page="${targetPage}"]`);
+                if (activeLink) {
+                    activeLink.classList.add('active');
+                }
+                
+                // Update page title with special handling for About page
+                if (targetPage === 'about') {
+                    document.title = 'Dhairya Jain';
+                } else {
+                    const tabNames = {
+                        'experience': 'Experience',
+                        'blogs': 'Blogs',
+                        'papers': 'Paper Shelf',
+                        'talks': 'Talks',
+                        'contact': 'Contact'
+                    };
+                    const tabName = tabNames[targetPage] || targetPage.charAt(0).toUpperCase() + targetPage.slice(1);
+                    document.title = `${tabName} | Dhairya Jain`;
+                }
+            }
+            
+            // Add click event listeners to nav links
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetPage = this.dataset.page;
+                    showPage(targetPage);
+                    
+                    // Update URL without page refresh
+                    history.pushState({page: targetPage}, '', `#${targetPage}`);
+                });
+            });
+            
+            // Handle browser back/forward buttons
+            window.addEventListener('popstate', function(e) {
+                if (e.state && e.state.page) {
+                    showPage(e.state.page);
+                } else {
+                    // Default to about page if no state
+                    showPage('about');
+                }
+            });
+            
+            // Handle direct URL access
+            const hash = window.location.hash.substring(1);
+            if (hash && document.getElementById(hash)) {
+                showPage(hash);
+            } else {
+                showPage('about');
+            }
+            
+            // Set initial state
+            history.replaceState({page: 'about'}, '', '#about');
+        });
+    </script>
+</body>
+</html>
