@@ -26,6 +26,7 @@
                     <li><a href="#" data-page="blogs" class="nav-link">Blogs</a></li>
                     <li><a href="#" data-page="papers" class="nav-link">Paper Shelf</a></li>
                     <li><a href="#" data-page="talks" class="nav-link">Talks</a></li>
+                    <li><a href="#" data-page="books" class="nav-link">Books</a></li>
                     <li><a href="#" data-page="resume" class="nav-link">Resume</a></li>
                     <li><a href="#" data-page="contact" class="nav-link">Contact</a></li>
                 </ul>
@@ -37,14 +38,20 @@
             <section>
                 <div style="display: flex; align-items: flex-start; gap: 2rem; margin-bottom: 2rem;">
                     <div style="flex-shrink: 0;">
-                        <img src="images/profile-new.jpg" alt="Dhairya Jain" style="width: 280px; height: 280px; object-fit: contain; border-radius: 50%; border: 3px solid #ddd; background-color: #f8f8f8;">
+                        <img src="images/profile-new.jpg" alt="Dhairya Jain" style="width: 220px; height: 220px; object-fit: contain; border-radius: 50%; border: 3px solid #ddd; background-color: #f8f8f8;">
                     </div>
                     <div style="flex: 1;">
-                        <p style="font-size: 1.1rem; line-height: 1.7; margin: 0;">
-                            My path into technology began with a solid foundation in quantitative analysis through my Economics degree at IIT Bombay, complemented by a minor in Industrial Engineering and Operations Research. This interdisciplinary background built a strong statistical foundation that proved invaluable when I discovered my passion for building software systems. What started as curiosity about applying mathematical models to real-world problems evolved into leading technical teams and architecting scalable solutions.
+                        <p style="font-family: 'Georgia', 'Times New Roman', serif; font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, #007acc, #0099ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin: 0 0 1rem 0; line-height: 1.3;">
+                            Hey, I'm Dhairya 👋
+                        </p>
+                        <p style="font-size: 1.2rem; line-height: 1.6; margin: 0; color: #333; font-weight: 500;">
+                            Software Development Engineer at Microsoft working on distributed systems and high-throughput infrastructure for Azure Storage. I build scalable, fault-tolerant systems that handle massive workloads—from optimizing blob storage garbage collection to implementing state machines for automatic recovery across data, control, and customer planes.
                         </p>
                     </div>
                 </div>
+                <p style="font-size: 1.1rem; line-height: 1.7; margin-bottom: 1.5rem;">
+                    My path into technology began with an Economics degree from IIT Bombay, complemented by a minor in Industrial Engineering and Operations Research. This interdisciplinary background built a strong statistical foundation that proved invaluable when I discovered my passion for building software systems. What started as curiosity about applying mathematical models to real-world problems evolved into leading technical teams and architecting scalable solutions.
+                </p>
                 <p style="font-size: 1.1rem; line-height: 1.7; margin-bottom: 1.5rem;">
                     Early in my journey, I took on leadership roles that shaped my approach to technology. As Manager of the Web Team at the Student Alumni Relations Cell, I led a five-member team through complex technical challenges, from implementing OAuth 2.0 authentication systems to architecting solutions that served over 10,000 alumni. This experience taught me that great technology isn't just about elegant algorithms—it's about understanding user needs, managing technical debt, and building systems that teams can maintain and scale.
                 </p>
@@ -259,6 +266,42 @@
                 <div class="subsection">
                     <h3>Interested in more?</h3>
                     <p>Planned upcoming sessions: Spanner TrueTime semantics, Designing reliable blob storage pipelines, and Practical Raft vs Paxos implementation notes.</p>
+                </div>
+            </section>
+        </div>
+
+        <div id="books" class="page-section">
+            <section>
+                <h2>Books</h2>
+                <p>A curated collection of books that have shaped my understanding of computer science and systems design.</p>
+                
+                <div class="subsection">
+                    <h3>Computer Systems & Architecture</h3>
+                    <div class="book-item">
+                        <h4>Computer Organization and Design: The Hardware/Software Interface (RISC-V Edition)</h4>
+                        <p><em>David A. Patterson & John L. Hennessy</em></p>
+                        <p class="book-description">
+                            The latest edition of the classic textbook on computer architecture, now featuring the open-source RISC-V instruction set architecture. This comprehensive guide covers everything from processor design to memory hierarchies, providing essential knowledge for understanding how hardware and software interact. The RISC-V edition offers a modern perspective on computer organization with updated examples and contemporary architectures.
+                        </p>
+                        <div class="book-actions">
+                            <a href="https://www.amazon.com/Computer-Organization-Design-RISC-V-Architecture/dp/0128122757" 
+                               class="download-link" 
+                               target="_blank" 
+                               rel="noopener noreferrer">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px; vertical-align: middle;">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                    <polyline points="15,3 21,3 21,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                View on Amazon
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="subsection">
+                    <h3>Coming Soon</h3>
+                    <p>More books on distributed systems, database internals, and software engineering principles will be added to this collection.</p>
                 </div>
             </section>
         </div>

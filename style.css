@@ -46,13 +46,21 @@ header {
 }
 
 .navbar-brand .brand-link {
-    color: #111;
+    background: linear-gradient(135deg, #007acc, #0099ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     text-decoration: none;
-    transition: color 0.2s ease;
+    transition: all 0.3s ease;
+    font-weight: 700;
 }
 
 .navbar-brand .brand-link:hover {
-    color: #007acc;
+    background: linear-gradient(135deg, #0052a3, #007acc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    transform: translateY(-1px);
 }
 
 .navbar-nav ul {
@@ -445,6 +453,53 @@ a:hover {
     margin-bottom: 1rem;
     font-size: 1rem;
     color: #555;
+}
+
+/* Books Section Styles */
+.book-item {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.book-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: #007acc;
+}
+
+.book-item h4 {
+    color: #111;
+    margin-bottom: 0.5rem;
+    font-size: 1.2rem;
+}
+
+.book-item p {
+    margin-bottom: 1rem;
+}
+
+.book-item em {
+    color: #666;
+    font-style: italic;
+}
+
+.book-description {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #555;
+}
+
+.book-actions {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.book-actions .download-link {
+    font-size: 0.95rem;
+    padding: 0.75rem 1.5rem;
 }
 
 /* Resume PDF Viewer Styles */
