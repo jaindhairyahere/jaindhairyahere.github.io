@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Designing High-Performance Queue Data Structures in C</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .blog-post {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .blog-post h1, .blog-post h2, .blog-post h3 {
+            color: #333;
+        }
+        .blog-post pre {
+            background-color: #f4f4f4;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+        }
+        .blog-post code {
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .blog-post a {
+            color: #007acc;
+        }
+        .implementation-box {
+            border: 2px solid #007acc;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            background-color: #f8fcff;
+        }
+        .future-work {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="navbar">
+            <div class="navbar-brand">
+                <h1><a href="../index.html" class="brand-link">Dhairya Jain</a></h1>
+            </div>
+            <nav class="navbar-nav">
+                <ul>
+                    <li><a href="../index.html#about" class="nav-link">About Me</a></li>
+                    <li><a href="../index.html#experience" class="nav-link">Experience</a></li>
+                    <li><a href="../index.html#blogs" class="nav-link active">Blogs</a></li>
+                    <li><a href="../index.html#papers" class="nav-link">Paper Shelf</a></li>
+                    <li><a href="../index.html#talks" class="nav-link">Talks</a></li>
+                    <li><a href="../index.html#books" class="nav-link">Books</a></li>
+                    <li><a href="../index.html#resume" class="nav-link">Resume</a></li>
+                    <li><a href="../index.html#contact" class="nav-link">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <article class="blog-post">
+            <h1>Designing High-Performance Queue Data Structures in C</h1>
+            <p><em>September 28, 2025</em></p>
+
+            <section>
+                <h2>Introduction</h2>
+                <p>Queues are fundamental data structures in systems programming, especially in scenarios involving producer-consumer patterns, inter-thread communication, and high-throughput data processing. In this comprehensive guide, we'll design and implement progressively more sophisticated queue data structures, starting from a simple single-threaded implementation and evolving to lock-free, multi-threaded variants.</p>
+                
+                <p>Our naming convention follows industry standards:</p>
+                <ul>
+                    <li><strong>S</strong> - Single</li>
+                    <li><strong>M</strong> - Multi</li>
+                    <li><strong>P</strong> - Producer</li>
+                    <li><strong>C</strong> - Consumer</li>
+                    <li><strong>T</strong> - Threaded (ST = Single Threaded, MT = Multi Threaded)</li>
+                </ul>
+                
+                <p>We'll implement fixed-size queues with the core operations: <code>isFull</code>, <code>isEmpty</code>, <code>enqueue</code>, and <code>dequeue</code>.</p>
+            </section>
+
+            <section>
+                <h2>Common Interface and Data Types</h2>
+                <p>Before diving into implementations, let's establish a common interface that all our queue variants will support:</p>
+                
+                <pre><code>
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;stdbool.h&gt;
+
+// Common data type for queue elements
+typedef int queue_data_t;
+
+// Queue operation results
+typedef enum {
+    QUEUE_SUCCESS = 0,
+    QUEUE_FULL = -1,
+    QUEUE_EMPTY = -2,
+    QUEUE_ERROR = -3
+} queue_result_t;
+
+// Forward declaration - specific implementations will define their own structs
+typedef struct queue queue_t;
+
+// Common interface that all queue implementations will support
+typedef struct {
+    bool (*is_full)(const queue_t* queue);
+    bool (*is_empty)(const queue_t* queue);
+    queue_result_t (*enqueue)(queue_t* queue, queue_data_t data);
+    queue_result_t (*dequeue)(queue_t* queue, queue_data_t* data);
+    void (*destroy)(queue_t* queue);
+} queue_ops_t;
+
+// Base queue structure
+struct queue {
+    const queue_ops_t* ops;
+    size_t capacity;
+};
+                </code></pre>
+            </section>
+
+            <div class="implementation-box">
+                <h2>Implementation 1: SPSCQueue (ST) - Single Threaded</h2>
+                <p>Our first implementation is a simple Single Producer Single Consumer queue for single-threaded environments. It uses two pointers to track the producer and consumer positions.</p>
+
+                <h3>Data Structure</h3>
+                <pre><code>
+// Single Producer Single Consumer Queue - Single Threaded
+typedef struct {
+    queue_t base;           // Base queue structure
+    queue_data_t* buffer;   // Circular buffer
+    size_t producer_idx;    // Producer write index
+    size_t consumer_idx;    // Consumer read index
+} spsc_st_queue_t;
+                </code></pre>
+
+                <h3>Implementation</h3>
+                <pre><code>
+// Forward declarations
+static bool spsc_st_is_full(const queue_t* queue);
+static bool spsc_st_is_empty(const queue_t* queue);
+static queue_result_t spsc_st_enqueue(queue_t* queue, queue_data_t data);
+static queue_result_t spsc_st_dequeue(queue_t* queue, queue_data_t* data);
+static void spsc_st_destroy(queue_t* queue);
+
+// Operation table for SPSC ST queue
+static const queue_ops_t spsc_st_ops = {
+    .is_full = spsc_st_is_full,
+    .is_empty = spsc_st_is_empty,
+    .enqueue = spsc_st_enqueue,
+    .dequeue = spsc_st_dequeue,
+    .destroy = spsc_st_destroy
+};
+
+// Create SPSC ST queue
+queue_t* spsc_st_queue_create(size_t capacity) {
+    spsc_st_queue_t* queue = malloc(sizeof(spsc_st_queue_t));
+    if (!queue) return NULL;
+    
+    queue->buffer = malloc(sizeof(queue_data_t) * (capacity + 1)); // +1 for full detection
+    if (!queue->buffer) {
+        free(queue);
+        return NULL;
+    }
+    
+    queue->base.ops = &spsc_st_ops;
+    queue->base.capacity = capacity;
+    queue->producer_idx = 0;
+    queue->consumer_idx = 0;
+    
+    return (queue_t*)queue;
+}
+
+static bool spsc_st_is_full(const queue_t* queue) {
+    const spsc_st_queue_t* q = (const spsc_st_queue_t*)queue;
+    return ((q->producer_idx + 1) % (q->base.capacity + 1)) == q->consumer_idx;
+}
+
+static bool spsc_st_is_empty(const queue_t* queue) {
+    const spsc_st_queue_t* q = (const spsc_st_queue_t*)queue;
+    return q->producer_idx == q->consumer_idx;
+}
+
+static queue_result_t spsc_st_enqueue(queue_t* queue, queue_data_t data) {
+    spsc_st_queue_t* q = (spsc_st_queue_t*)queue;
+    
+    if (spsc_st_is_full(queue)) {
+        return QUEUE_FULL;
+    }
+    
+    q->buffer[q->producer_idx] = data;
+    q->producer_idx = (q->producer_idx + 1) % (q->base.capacity + 1);
+    
+    return QUEUE_SUCCESS;
+}
+
+static queue_result_t spsc_st_dequeue(queue_t* queue, queue_data_t* data) {
+    spsc_st_queue_t* q = (spsc_st_queue_t*)queue;
+    
+    if (spsc_st_is_empty(queue)) {
+        return QUEUE_EMPTY;
+    }
+    
+    *data = q->buffer[q->consumer_idx];
+    q->consumer_idx = (q->consumer_idx + 1) % (q->base.capacity + 1);
+    
+    return QUEUE_SUCCESS;
+}
+
+static void spsc_st_destroy(queue_t* queue) {
+    spsc_st_queue_t* q = (spsc_st_queue_t*)queue;
+    free(q->buffer);
+    free(q);
+}
+                </code></pre>
+            </div>
+
+            <div class="implementation-box">
+                <h2>Implementation 2: SPSCQueue (MT) - Multi-Threaded with Memory Barriers</h2>
+                <p>Our second implementation extends the SPSC queue for multi-threaded environments. The key insight is to use memory barriers to ensure proper ordering of memory operations, preventing race conditions without using expensive locks.</p>
+
+                <h3>Memory Barriers in C</h3>
+                <pre><code>
+#ifdef _WIN32
+    #include &lt;windows.h&gt;
+    #define MEMORY_BARRIER() MemoryBarrier()
+    #define COMPILER_BARRIER() _ReadWriteBarrier()
+#elif defined(__GNUC__)
+    #define MEMORY_BARRIER() __sync_synchronize()
+    #define COMPILER_BARRIER() __asm__ __volatile__("" ::: "memory")
+#else
+    #error "Unsupported compiler/platform"
+#endif
+                </code></pre>
+
+                <h3>Data Structure</h3>
+                <pre><code>
+// Single Producer Single Consumer Queue - Multi Threaded
+typedef struct {
+    queue_t base;                    // Base queue structure
+    queue_data_t* buffer;           // Circular buffer
+    volatile size_t producer_idx;    // Producer write index (volatile for MT)
+    volatile size_t consumer_idx;    // Consumer read index (volatile for MT)
+} spsc_mt_queue_t;
+                </code></pre>
+
+                <h3>Implementation</h3>
+                <pre><code>
+// Forward declarations
+static bool spsc_mt_is_full(const queue_t* queue);
+static bool spsc_mt_is_empty(const queue_t* queue);
+static queue_result_t spsc_mt_enqueue(queue_t* queue, queue_data_t data);
+static queue_result_t spsc_mt_dequeue(queue_t* queue, queue_data_t* data);
+static void spsc_mt_destroy(queue_t* queue);
+
+// Operation table for SPSC MT queue
+static const queue_ops_t spsc_mt_ops = {
+    .is_full = spsc_mt_is_full,
+    .is_empty = spsc_mt_is_empty,
+    .enqueue = spsc_mt_enqueue,
+    .dequeue = spsc_mt_dequeue,
+    .destroy = spsc_mt_destroy
+};
+
+// Create SPSC MT queue
+queue_t* spsc_mt_queue_create(size_t capacity) {
+    spsc_mt_queue_t* queue = malloc(sizeof(spsc_mt_queue_t));
+    if (!queue) return NULL;
+    
+    queue->buffer = malloc(sizeof(queue_data_t) * (capacity + 1));
+    if (!queue->buffer) {
+        free(queue);
+        return NULL;
+    }
+    
+    queue->base.ops = &spsc_mt_ops;
+    queue->base.capacity = capacity;
+    queue->producer_idx = 0;
+    queue->consumer_idx = 0;
+    
+    return (queue_t*)queue;
+}
+
+static bool spsc_mt_is_full(const queue_t* queue) {
+    const spsc_mt_queue_t* q = (const spsc_mt_queue_t*)queue;
+    size_t producer = q->producer_idx;
+    size_t consumer = q->consumer_idx;
+    return ((producer + 1) % (q->base.capacity + 1)) == consumer;
+}
+
+static bool spsc_mt_is_empty(const queue_t* queue) {
+    const spsc_mt_queue_t* q = (const spsc_mt_queue_t*)queue;
+    size_t producer = q->producer_idx;
+    size_t consumer = q->consumer_idx;
+    return producer == consumer;
+}
+
+static queue_result_t spsc_mt_enqueue(queue_t* queue, queue_data_t data) {
+    spsc_mt_queue_t* q = (spsc_mt_queue_t*)queue;
+    
+    size_t next_producer_idx = (q->producer_idx + 1) % (q->base.capacity + 1);
+    
+    // Check if queue is full
+    if (next_producer_idx == q->consumer_idx) {
+        return QUEUE_FULL;
+    }
+    
+    // Write data to buffer first
+    q->buffer[q->producer_idx] = data;
+    
+    // Memory barrier ensures data is written before index update
+    MEMORY_BARRIER();
+    
+    // Update producer index - this makes the data visible to consumer
+    q->producer_idx = next_producer_idx;
+    
+    return QUEUE_SUCCESS;
+}
+
+static queue_result_t spsc_mt_dequeue(queue_t* queue, queue_data_t* data) {
+    spsc_mt_queue_t* q = (spsc_mt_queue_t*)queue;
+    
+    // Check if queue is empty
+    if (q->consumer_idx == q->producer_idx) {
+        return QUEUE_EMPTY;
+    }
+    
+    // Read data from buffer
+    *data = q->buffer[q->consumer_idx];
+    
+    // Memory barrier ensures data is read before index update
+    MEMORY_BARRIER();
+    
+    // Update consumer index
+    q->consumer_idx = (q->consumer_idx + 1) % (q->base.capacity + 1);
+    
+    return QUEUE_SUCCESS;
+}
+
+static void spsc_mt_destroy(queue_t* queue) {
+    spsc_mt_queue_t* q = (spsc_mt_queue_t*)queue;
+    free(q->buffer);
+    free(q);
+}
+                </code></pre>
+            </div>
+
+            <section>
+                <h2>Key Differences and Design Insights</h2>
+                
+                <h3>Single-Threaded vs Multi-Threaded</h3>
+                <ul>
+                    <li><strong>Volatile Keywords:</strong> In the MT version, indices are marked <code>volatile</code> to prevent compiler optimizations that might cache values in registers.</li>
+                    <li><strong>Memory Barriers:</strong> Critical for ensuring proper ordering of memory operations. The barrier ensures that data is fully written/read before updating the index that makes it visible to other threads.</li>
+                    <li><strong>Lock-Free Design:</strong> Both implementations avoid locks, making them suitable for high-performance scenarios where lock contention would be a bottleneck.</li>
+                </ul>
+
+                <h3>Why Memory Barriers Matter</h3>
+                <p>Without memory barriers, the CPU or compiler might reorder instructions for optimization. In our enqueue operation, if the index update happens before the data write, a consumer thread might read garbage data. The memory barrier prevents this reordering.</p>
+            </section>
+
+            <section>
+                <h2>Usage Example</h2>
+                <pre><code>
+#include &lt;pthread.h&gt;
+#include &lt;unistd.h&gt;
+
+// Producer thread function
+void* producer_thread(void* arg) {
+    queue_t* queue = (queue_t*)arg;
+    
+    for (int i = 0; i &lt; 100; i++) {
+        while (queue->ops->enqueue(queue, i) != QUEUE_SUCCESS) {
+            // Spin until space is available
+            usleep(1);
+        }
+        printf("Produced: %d\n", i);
+    }
+    return NULL;
+}
+
+// Consumer thread function
+void* consumer_thread(void* arg) {
+    queue_t* queue = (queue_t*)arg;
+    queue_data_t data;
+    
+    for (int i = 0; i &lt; 100; i++) {
+        while (queue->ops->dequeue(queue, &data) != QUEUE_SUCCESS) {
+            // Spin until data is available
+            usleep(1);
+        }
+        printf("Consumed: %d\n", data);
+    }
+    return NULL;
+}
+
+int main() {
+    // Create a multi-threaded SPSC queue
+    queue_t* queue = spsc_mt_queue_create(10);
+    
+    pthread_t producer, consumer;
+    
+    // Create producer and consumer threads
+    pthread_create(&producer, NULL, producer_thread, queue);
+    pthread_create(&consumer, NULL, consumer_thread, queue);
+    
+    // Wait for threads to complete
+    pthread_join(producer, NULL);
+    pthread_join(consumer, NULL);
+    
+    // Clean up
+    queue->ops->destroy(queue);
+    
+    return 0;
+}
+                </code></pre>
+            </section>
+
+            <div class="future-work">
+                <h2>Coming Next: Advanced Queue Implementations</h2>
+                <p>In the next part of this series, we'll extend our design to handle more complex scenarios:</p>
+                <ul>
+                    <li><strong>SPMCQueue (MT):</strong> Single Producer, Multiple Consumer queue using atomic operations and proper synchronization</li>
+                    <li><strong>MPMCQueue (MT):</strong> Multiple Producer, Multiple Consumer queue with full lock-free implementation using Compare-And-Swap (CAS) operations</li>
+                </ul>
+                <p>These implementations will demonstrate advanced concepts like ABA problem mitigation, epoch-based memory reclamation, and high-performance atomic operations.</p>
+            </div>
+
+            <section>
+                <h2>Conclusion</h2>
+                <p>We've successfully implemented two foundational queue data structures: a simple single-threaded SPSC queue and its thread-safe counterpart using memory barriers. The progression from ST to MT demonstrates the careful considerations required when designing concurrent data structures.</p>
+                
+                <p>Key takeaways:</p>
+                <ul>
+                    <li>Lock-free data structures can provide excellent performance in high-throughput scenarios</li>
+                    <li>Memory barriers are crucial for maintaining correctness in concurrent environments</li>
+                    <li>A well-designed interface allows for easy evolution from simple to complex implementations</li>
+                    <li>Understanding CPU and compiler optimizations is essential for low-level systems programming</li>
+                </ul>
+                
+                <p>These queue implementations form the foundation for more advanced concurrent data structures and are commonly used in high-performance systems, game engines, and real-time applications where predictable latency and high throughput are critical.</p>
+            </section>
+        </article>
+    </main>
+    <footer>
+        <div class="footer-content">
+            <p class="copyright">&copy; 2025 Dhairya Jain</p>
+        </div>
+    </footer>
+</body>
+</html>
