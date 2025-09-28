@@ -211,6 +211,32 @@ typedef struct {
 } spsc_st_queue_t;
                 </code></pre>
 
+                <h3>Visual Representation</h3>
+                <div class="mermaid">
+                graph TD
+                    subgraph "SPSC Queue States"
+                        A["🔄 Empty Queue<br/>producer_idx = 0<br/>consumer_idx = 0<br/>buffer = [ ]"]
+                        B["📝 After Enqueue(10)<br/>producer_idx = 1<br/>consumer_idx = 0<br/>buffer = [10]"]
+                        C["📝 After Enqueue(20)<br/>producer_idx = 2<br/>consumer_idx = 0<br/>buffer = [10, 20]"]
+                        D["📖 After Dequeue()<br/>producer_idx = 2<br/>consumer_idx = 1<br/>buffer = [_, 20]<br/>returned: 10"]
+                        E["⚠️ Full Queue<br/>producer_idx = capacity<br/>consumer_idx = 0<br/>buffer = [10, 20, ..., 90]"]
+                    end
+                    
+                    A -->|"enqueue(10)"| B
+                    B -->|"enqueue(20)"| C
+                    C -->|"dequeue()"| D
+                    B -->|"keep adding..."| E
+                    E -->|"dequeue() to make space"| C
+                    
+                    style A fill:#e8f4f8,stroke:#2b6cb0,stroke-width:2px
+                    style B fill:#f0fff4,stroke:#38a169,stroke-width:2px  
+                    style C fill:#f0fff4,stroke:#38a169,stroke-width:2px
+                    style D fill:#fffaf0,stroke:#d69e2e,stroke-width:2px
+                    style E fill:#fed7d7,stroke:#e53e3e,stroke-width:2px
+                </div>
+} spsc_st_queue_t;
+                </code></pre>
+
                 <h3>Implementation</h3>
                 <pre><code class="language-c">
 // Forward declarations
@@ -469,6 +495,33 @@ optimal_wait_for_turn(&q->consumer_tail, consumer_idx);
     #error "Unsupported compiler/platform"
 #endif
                 </code></pre>
+
+                <h3>Memory Reordering Problem Visualization</h3>
+                <div class="mermaid">
+                sequenceDiagram
+                    participant CPU as CPU Core
+                    participant Mem as Memory
+                    participant Other as Other Thread
+                    
+                    Note over CPU,Other: Without Memory Barriers (DANGEROUS)
+                    CPU->>CPU: 1. buffer[idx] = data
+                    CPU->>CPU: 2. producer_idx++
+                    Note right of CPU: CPU reorders!
+                    CPU->>Mem: producer_idx++ (executed first!)
+                    Other->>Mem: Read producer_idx (sees new value)
+                    Other->>Mem: Read buffer[idx] (old/garbage data!)
+                    CPU->>Mem: buffer[idx] = data (too late!)
+                    
+                    Note over CPU,Other: With Memory Barriers (SAFE)
+                    CPU->>CPU: 1. buffer[idx] = data
+                    CPU->>Mem: buffer[idx] = data (forced order)
+                    CPU->>CPU: MEMORY_BARRIER()
+                    Note right of CPU: Barrier prevents reordering
+                    CPU->>CPU: 2. producer_idx++
+                    CPU->>Mem: producer_idx++ (after data write)
+                    Other->>Mem: Read producer_idx (sees new value)
+                    Other->>Mem: Read buffer[idx] (correct data!)
+                </div>
 
                 <h3>Data Structure</h3>
                 <pre><code class="language-c">
@@ -845,6 +898,103 @@ static queue_result_t spmc_dequeue_broken(queue_t* queue, queue_data_t* data) {
                 <p>The solution is to separate the "reservation" of a slot from the actual consumption. We use two consumer indices:</p>
                 <ul>
                     <li><strong>consumer_head:</strong> Points to the next slot to be reserved (atomically incremented)</li>
+                    <li><strong>consumer_tail:</strong> Points to the next slot to be actually consumed (waits for proper ordering)</li>
+                </ul>
+
+                <h3>SPMC Two-Heads Protocol Visualization</h3>
+                <div class="mermaid">
+                graph TB
+                    subgraph "SPMC Queue Buffer"
+                        B0["[0] Data=10"]
+                        B1["[1] Data=20"]
+                        B2["[2] Data=30"]
+                        B3["[3] Empty"]
+                        B4["[4] Empty"]
+                    end
+                    
+                    subgraph "Consumer Threads"
+                        C1["🔵 Consumer 1"]
+                        C2["🟢 Consumer 2"]
+                        C3["🟡 Consumer 3"]
+                    end
+                    
+                    subgraph "Protocol Steps"
+                        S1["Step 1: Atomic Reservation<br/>CAS(consumer_head, 0, 1)"]
+                        S2["Step 2: Read Reserved Data<br/>data = buffer[reserved_idx]"]
+                        S3["Step 3: Wait for Turn<br/>wait_until(consumer_tail == my_idx)"]
+                        S4["Step 4: Advance Tail<br/>consumer_tail++"]
+                    end
+                    
+                    subgraph "Race Prevention"
+                        R1["🔒 Only ONE thread reserves slot 0"]
+                        R2["📖 That thread reads buffer[0] safely"]
+                        R3["⏳ Must wait for in-order completion"]
+                        R4["✅ Tail advances maintaining order"]
+                    end
+                    
+                    C1 --> S1
+                    C2 --> S1
+                    C3 --> S1
+                    S1 --> S2
+                    S2 --> S3
+                    S3 --> S4
+                    
+                    S1 --> R1
+                    S2 --> R2
+                    S3 --> R3
+                    S4 --> R4
+                    
+                    style B0 fill:#ffd6cc,stroke:#ff6b35,stroke-width:2px
+                    style B1 fill:#ffd6cc,stroke:#ff6b35,stroke-width:2px
+                    style B2 fill:#ffd6cc,stroke:#ff6b35,stroke-width:2px
+                    style B3 fill:#f0f0f0,stroke:#999,stroke-width:1px
+                    style B4 fill:#f0f0f0,stroke:#999,stroke-width:1px
+                    style C1 fill:#cce7ff,stroke:#0066cc,stroke-width:2px
+                    style C2 fill:#ccffcc,stroke:#00cc00,stroke-width:2px
+                    style C3 fill:#ffffcc,stroke:#cccc00,stroke-width:2px
+                    style R1 fill:#e8f5e8,stroke:#4CAF50,stroke-width:2px
+                    style R2 fill:#e8f5e8,stroke:#4CAF50,stroke-width:2px
+                    style R3 fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+                    style R4 fill:#d4edda,stroke:#28a745,stroke-width:2px
+                </div>
+
+                <h3>Timeline of SPMC Operations</h3>
+                <div class="mermaid">
+                sequenceDiagram
+                    participant P as Producer
+                    participant Q as Queue
+                    participant C1 as Consumer 1
+                    participant C2 as Consumer 2
+                    participant C3 as Consumer 3
+                    
+                    P->>Q: enqueue(10) → buffer[0]=10, producer_idx=1
+                    P->>Q: enqueue(20) → buffer[1]=20, producer_idx=2
+                    P->>Q: enqueue(30) → buffer[2]=30, producer_idx=3
+                    
+                    Note over C1,C3: Multiple consumers start dequeue simultaneously
+                    
+                    par Consumer 1 (wins slot 0)
+                        C1->>Q: CAS(consumer_head, 0, 1) ✅ SUCCESS
+                        C1->>Q: Read buffer[0] → data=10
+                        C1->>C1: Wait for consumer_tail==0 (already true)
+                        C1->>Q: consumer_tail=1 (advance)
+                        C1->>C1: Return data=10 ✅
+                    and Consumer 2 (gets slot 1)
+                        C2->>Q: CAS(consumer_head, 1, 2) ✅ SUCCESS  
+                        C2->>Q: Read buffer[1] → data=20
+                        C2->>C2: Wait for consumer_tail==1 ✅
+                        C2->>Q: consumer_tail=2 (advance)
+                        C2->>C2: Return data=20 ✅
+                    and Consumer 3 (gets slot 2)
+                        C3->>Q: CAS(consumer_head, 2, 3) ✅ SUCCESS
+                        C3->>Q: Read buffer[2] → data=30
+                        C3->>C3: Wait for consumer_tail==2 ✅
+                        C3->>Q: consumer_tail=3 (advance)
+                        C3->>C3: Return data=30 ✅
+                    end
+                    
+                    Note over Q: Final state: All data consumed safely, no races!
+                </div>
                     <li><strong>consumer_tail:</strong> Points to the next slot the producer can overwrite (updated after consumption)</li>
                 </ul>
 
@@ -1128,6 +1278,100 @@ int main() {
                     <li><strong>producer_head:</strong> Points to the next slot to be reserved by producers (atomically incremented)</li>
                     <li><strong>producer_tail:</strong> Points to the next slot available for consumer reading (updated after production)</li>
                 </ul>
+
+                <h3>MPSC Producer Coordination Visualization</h3>
+                <div class="mermaid">
+                graph TB
+                    subgraph "Producer Threads"
+                        P1["🔴 Producer 1<br/>Wants to write 'LOG1'"]
+                        P2["🟢 Producer 2<br/>Wants to write 'LOG2'"]  
+                        P3["🔵 Producer 3<br/>Wants to write 'LOG3'"]
+                    end
+                    
+                    subgraph "MPSC Queue Buffer" 
+                        B0["[0] Empty"]
+                        B1["[1] Empty"]
+                        B2["[2] Empty"]
+                        B3["[3] Empty"]
+                        PH["producer_head = 0"]
+                        PT["producer_tail = 0"]
+                    end
+                    
+                    subgraph "Atomic Reservation Phase"
+                        R1["P1: CAS(producer_head, 0, 1) ✅"]
+                        R2["P2: CAS(producer_head, 1, 2) ✅"]
+                        R3["P3: CAS(producer_head, 2, 3) ✅"]
+                    end
+                    
+                    subgraph "Parallel Write Phase"
+                        W1["P1: buffer[0] = 'LOG1'"]
+                        W2["P2: buffer[1] = 'LOG2'"]
+                        W3["P3: buffer[2] = 'LOG3'"]
+                    end
+                    
+                    subgraph "Ordered Completion Phase"
+                        O1["P1: Wait for producer_tail==0 ✅<br/>Then producer_tail=1"]
+                        O2["P2: Wait for producer_tail==1 ✅<br/>Then producer_tail=2"]
+                        O3["P3: Wait for producer_tail==2 ✅<br/>Then producer_tail=3"]
+                    end
+                    
+                    P1 --> R1
+                    P2 --> R2
+                    P3 --> R3
+                    R1 --> W1
+                    R2 --> W2  
+                    R3 --> W3
+                    W1 --> O1
+                    W2 --> O2
+                    W3 --> O3
+                    
+                    style P1 fill:#ffcccb,stroke:#ff0000,stroke-width:2px
+                    style P2 fill:#ccffcc,stroke:#00cc00,stroke-width:2px
+                    style P3 fill:#ccccff,stroke:#0000ff,stroke-width:2px
+                    style R1 fill:#fff2cc,stroke:#d6b656,stroke-width:2px
+                    style R2 fill:#fff2cc,stroke:#d6b656,stroke-width:2px
+                    style R3 fill:#fff2cc,stroke:#d6b656,stroke-width:2px
+                    style O1 fill:#e8f5e8,stroke:#4CAF50,stroke-width:2px
+                    style O2 fill:#e8f5e8,stroke:#4CAF50,stroke-width:2px
+                    style O3 fill:#e8f5e8,stroke:#4CAF50,stroke-width:2px
+                </div>
+
+                <h3>MPSC Timeline with Multiple Producers</h3>
+                <div class="mermaid">
+                sequenceDiagram
+                    participant P1 as Producer 1
+                    participant P2 as Producer 2
+                    participant P3 as Producer 3
+                    participant Q as Queue
+                    participant C as Consumer
+                    
+                    Note over P1,P3: All producers start enqueue simultaneously
+                    
+                    par Producer 1 (gets slot 0)
+                        P1->>Q: CAS(producer_head, 0, 1) ✅
+                        P1->>Q: Write buffer[0] = "LOG1"
+                        P1->>P1: Wait for producer_tail==0 ✅ (immediately true)
+                        P1->>Q: producer_tail = 1 (advance)
+                    and Producer 2 (gets slot 1)  
+                        P2->>Q: CAS(producer_head, 1, 2) ✅
+                        P2->>Q: Write buffer[1] = "LOG2"
+                        P2->>P2: Wait for producer_tail==1 ✅ (after P1 completes)
+                        P2->>Q: producer_tail = 2 (advance)
+                    and Producer 3 (gets slot 2)
+                        P3->>Q: CAS(producer_head, 2, 3) ✅
+                        P3->>Q: Write buffer[2] = "LOG3"
+                        P3->>P3: Wait for producer_tail==2 ✅ (after P2 completes)
+                        P3->>Q: producer_tail = 3 (advance)
+                    end
+                    
+                    Note over Q: Queue now has ordered data: LOG1, LOG2, LOG3
+                    
+                    C->>Q: dequeue() → "LOG1"
+                    C->>Q: dequeue() → "LOG2" 
+                    C->>Q: dequeue() → "LOG3"
+                    
+                    Note over C: Consumer reads data in proper order!
+                </div>
 
                 <h3>Data Structure</h3>
                 <pre><code class="language-c">
@@ -1501,6 +1745,55 @@ Thread1: CAS(&head, old_head, next);  // CAS(ptr_to_A, ptr_to_B)
                     <li><strong>Extremely Hard to Debug:</strong> Race condition only occurs under specific timing</li>
                 </ul>
 
+                <h5>ABA Problem Timeline Visualization</h5>
+                <div class="mermaid">
+                sequenceDiagram
+                    participant T1 as Thread 1
+                    participant Queue as Queue State
+                    participant T2 as Thread 2
+                    participant Mem as Memory Pool
+                    
+                    Note over T1,Mem: Initial State: head points to Node A
+                    Queue->>Queue: head = &A, Queue: [A→B→C]
+                    
+                    Note over T1,Mem: Time 1: Thread 1 starts CAS operation
+                    T1->>Queue: old_head = head (reads &A)
+                    T1->>Queue: next = old_head->next (reads &B)
+                    Note right of T1: Thread 1 gets interrupted!
+                    
+                    Note over T1,Mem: Time 2-3: Thread 2 performs operations
+                    T2->>Queue: dequeue() removes A
+                    Queue->>Queue: head = &B, Queue: [B→C]
+                    T2->>Mem: free(A)
+                    Mem->>Mem: Node A deallocated
+                    
+                    T2->>Queue: dequeue() removes B  
+                    Queue->>Queue: head = &C, Queue: [C]
+                    T2->>Mem: free(B)
+                    Mem->>Mem: Node B deallocated
+                    
+                    Note over T1,Mem: Time 4: Memory reuse (THE TRAP!)
+                    T2->>Mem: malloc() returns same address
+                    Mem->>T2: Returns &A (same address!)
+                    T2->>Queue: enqueue(new_data) 
+                    Queue->>Queue: head = &A, Queue: [A→C] 
+                    
+                    Note over T1,Mem: Time 5: Thread 1 resumes (DISASTER!)
+                    T1->>Queue: CAS(&head, &A, &B) 
+                    Note right of T1: head == &A (success!)
+                    Queue->>Queue: head = &B (INVALID!)
+                    Note right of Queue: &B points to deallocated memory!
+                    
+                    Note over T1,Mem: Result: MEMORY CORRUPTION
+                    T1->>Queue: Access head->data
+                    Queue-->>T1: CRASH or garbage data!
+                    
+                    style T1 fill:#ffebee,stroke:#f44336,stroke-width:2px
+                    style T2 fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+                    style Mem fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+                    style Queue fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+                </div>
+
                 <h5>Real-World ABA Problem in Queue Context:</h5>
                 <pre><code class="language-c">// Dangerous MPMC dequeue without ABA protection
 queue_result_t dangerous_dequeue(queue_t* queue, queue_data_t* data) {
@@ -1681,5 +1974,22 @@ do {
     <!-- Prism.js for syntax highlighting -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    
+    <!-- Mermaid.js for diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#2d3748',
+                primaryTextColor: '#1a202c',
+                primaryBorderColor: '#4a5568',
+                lineColor: '#718096',
+                secondaryColor: '#e2e8f0',
+                tertiaryColor: '#f7fafc'
+            }
+        });
+    </script>
 </body>
 </html>
