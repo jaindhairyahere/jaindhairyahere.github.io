@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Bitfields in C++ - A Memory Optimization Guide</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .blog-post {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .blog-post h1, .blog-post h2, .blog-post h3 {
+            color: #333;
+        }
+        .blog-post pre {
+            background-color: #f4f4f4;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .blog-post code {
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .blog-post a {
+            color: #007acc;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="navbar">
+            <div class="navbar-brand">
+                <h1><a href="../index.html" class="brand-link">Dhairya Jain</a></h1>
+            </div>
+            <nav class="navbar-nav">
+                 <ul>
+                    <li><a href="../index.html#about" class="nav-link">About Me</a></li>
+                    <li><a href="../index.html#experience" class="nav-link">Experience</a></li>
+                    <li><a href="../index.html#blogs" class="nav-link active">Blogs</a></li>
+                    <li><a href="../index.html#papers" class="nav-link">Paper Shelf</a></li>
+                    <li><a href="../index.html#talks" class="nav-link">Talks</a></li>
+                    <li><a href="../index.html#books" class="nav-link">Books</a></li>
+                    <li><a href="../index.html#resume" class="nav-link">Resume</a></li>
+                    <li><a href="../index.html#contact" class="nav-link">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <article class="blog-post">
+            <h1>Understanding Bitfields in C++: A Memory Optimization Guide</h1>
+            <p><em>September 28, 2025</em></p>
+
+            <section>
+                <h2>What are Bitfields?</h2>
+                <p>In C++, a bitfield is a special feature that allows you to specify the number of bits a member of a struct or class should occupy. Instead of being aligned to the nearest byte, bitfield members can be packed together to save memory. This is particularly useful in systems programming, embedded systems, or any scenario where memory is at a premium.</p>
+                <p>When you have multiple boolean flags or small integer values, storing each in a separate variable (like <code>bool</code> or <code>int</code>) can be wasteful. A <code>bool</code> typically occupies a full byte (8 bits), even though it only needs one bit. Bitfields let you pack these values tightly.</p>
+            </section>
+
+            <section>
+                <h2>How to Create Bitfields</h2>
+                <p>You declare a bitfield within a <code>struct</code> or <code>class</code> by following the member's name with a colon and the number of bits it should occupy.</p>
+                <pre><code>
+struct PacketHeader {
+    unsigned int version : 4;
+    unsigned int headerLength : 4;
+    unsigned int typeOfService : 8;
+    unsigned int totalLength : 16;
+};
+                </code></pre>
+                <p>In this example:</p>
+                <ul>
+                    <li><code>version</code> is an unsigned integer that occupies 4 bits.</li>
+                    <li><code>headerLength</code> occupies 4 bits.</li>
+                    <li><code>typeOfService</code> occupies 8 bits (1 byte).</li>
+                    <li><code>totalLength</code> occupies 16 bits (2 bytes).</li>
+                </ul>
+                <p>The total size of this struct is 4 + 4 + 8 + 16 = 32 bits, which is exactly 4 bytes. The compiler packs these members together without any padding between them.</p>
+            </section>
+
+            <section>
+                <h2>Code Example: The Advantage of Bitfields</h2>
+                <p>Let's compare a regular struct with a bitfield struct to see the memory savings.</p>
+
+                <h3>Without Bitfields</h3>
+                <p>Here’s a struct with regular data types.</p>
+                <pre><code>
+#include &lt;iostream&gt;
+
+struct RegularDate {
+    unsigned int day;   // 1-31
+    unsigned int month; // 1-12
+    unsigned int year;  // e.g., 0-99 for 2000-2099
+};
+
+int main() {
+    std::cout &lt;&lt; "Size of RegularDate: " &lt;&lt; sizeof(RegularDate) &lt;&lt; " bytes" &lt;&lt; std::endl;
+    return 0;
+}
+                </code></pre>
+                <p><b>Output:</b></p>
+                <pre><code>
+Size of RegularDate: 12 bytes
+                </code></pre>
+                <p>Each <code>unsigned int</code> typically takes 4 bytes, so the total is 12 bytes.</p>
+
+                <h3>With Bitfields</h3>
+                <p>Now, let's optimize this using bitfields. We know the maximum values required for each field:</p>
+                <ul>
+                    <li><b>Day:</b> 1-31 requires 5 bits (since 2^5 = 32).</li>
+                    <li><b>Month:</b> 1-12 requires 4 bits (since 2^4 = 16).</li>
+                    <li><b>Year:</b> 0-99 requires 7 bits (since 2^7 = 128).</li>
+                </ul>
+                <pre><code>
+#include &lt;iostream&gt;
+
+struct BitfieldDate {
+    unsigned int day   : 5;
+    unsigned int month : 4;
+    unsigned int year  : 7;
+};
+
+int main() {
+    std::cout &lt;&lt; "Size of BitfieldDate: " &lt;&lt; sizeof(BitfieldDate) &lt;&lt; " bytes" &lt;&lt; std::endl;
+    
+    BitfieldDate date;
+    date.day = 28;
+    date.month = 9;
+    date.year = 25;
+
+    std::cout &lt;&lt; "Date: " &lt;&lt; date.day &lt;&lt; "/" &lt;&lt; date.month &lt;&lt; "/20" &lt;&lt; date.year &lt;&lt; std::endl;
+    return 0;
+}
+                </code></pre>
+                <p><b>Output:</b></p>
+                <pre><code>
+Size of BitfieldDate: 4 bytes
+Date: 28/9/2025
+                </code></pre>
+                <p>The total number of bits is 5 + 4 + 7 = 16 bits. The compiler packs this into the smallest possible space, which is typically an <code>unsigned int</code> (4 bytes on most systems). We've reduced the memory usage from 12 bytes to 4 bytes—a 66% saving!</p>
+            </section>
+
+            <section>
+                <h2>When Should We Use Bitfields?</h2>
+                <p>Bitfields are most effective in specific scenarios:</p>
+                <ol>
+                    <li><b>Memory-Constrained Environments:</b> In embedded systems, IoT devices, or old hardware, every byte counts.</li>
+                    <li><b>Hardware Interfacing:</b> When reading data from hardware registers that have a specific bit layout (e.g., network packet headers, device status registers). Bitfields allow you to map a struct directly onto the hardware data structure.</li>
+                    <li><b>Data Compression:</b> When storing a large number of similar objects, the memory savings from bitfields can be substantial.</li>
+                </ol>
+                <p>However, there are trade-offs. Accessing bitfields can be slightly slower than accessing standard data types because the CPU may need to perform extra bitwise operations (shifting and masking) to isolate the bits.</p>
+            </section>
+
+            <section>
+                <h2>Bitfields in Other Languages</h2>
+                <p>Do other languages offer bitfields, or do they generate optimal memory layouts by default?</p>
+                <ul>
+                    <li><b>C:</b> C has the same bitfield support as C++, as C++ inherited this feature from C.</li>
+                    <li><b>Rust:</b> Rust does not have a native bitfield syntax in the same way as C/C++. However, the community provides powerful libraries like <code>bitfield</code> and <code>packed_struct</code> that offer similar or even more powerful capabilities with compile-time checks.</li>
+                    <li><b>Python, Java, C#:</b> These higher-level languages generally do not provide low-level bitfield control. Their focus is on developer productivity and safety, and memory layout is abstracted away. The virtual machines (JVM, CLR) and interpreters manage memory, and while they are highly optimized, they don't typically pack data at the bit level in user-defined objects. For bit-level manipulation, you would use bitwise operators on standard integer types.</li>
+                </ul>
+                <p>In summary, bitfields are a powerful, low-level tool for memory optimization, primarily used in systems programming languages like C and C++. While higher-level languages prioritize abstraction, the need for bit-level control remains crucial in performance-critical and memory-sensitive domains.</p>
+            </section>
+        </article>
+    </main>
+    <footer>
+        <div class="footer-content">
+            <p class="copyright">&copy; 2025 Dhairya Jain</p>
+        </div>
+    </footer>
+</body>
+</html>
