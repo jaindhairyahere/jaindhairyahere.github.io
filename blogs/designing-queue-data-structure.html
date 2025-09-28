@@ -10,13 +10,26 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     
     <style>
+        /* Override any parent container width constraints */
         .blog-post {
-            max-width: 1200px;
+            max-width: 1200px !important;
+            width: 90% !important;
             margin: 2rem auto;
-            padding: 2rem;
+            padding: 0.5rem;
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Ensure container elements don't constrain us */
+        body {
+            max-width: none !important;
+        }
+        
+        /* Override the main container width for this blog post */
+        main {
+            max-width: 1300px !important;
+            width: 95% !important;
         }
         .blog-post h1, .blog-post h2, .blog-post h3 {
             color: #333;
