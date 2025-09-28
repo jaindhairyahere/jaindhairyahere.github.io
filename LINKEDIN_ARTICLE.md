@@ -32,6 +32,12 @@ Each queue variant demonstrates different aspects of concurrent programming:
 
 The complete implementation includes assembly-level analysis, interactive visualizations, and comprehensive documentation of the race conditions each design prevents.
 
+## Leveraging AI for Educational Content
+
+One interesting aspect of this project was experimenting with AI assistance for creating educational materials. While I implemented all the core algorithms and data structures myself, I used AI to help generate the comprehensive tutorial documentation, create interactive Mermaid.js diagrams that visualize complex concepts like the ABA problem timeline, and build a D3.js interactive demonstration of the MPMC queue operations.
+
+The AI was particularly helpful in cleaning up code presentation and creating visual explanations that would have taken significantly longer to develop manually. This hybrid approach - human implementation with AI-assisted documentation and visualization - proved quite effective for creating thorough educational content.
+
 ## Next Steps
 
 I'm planning to profile these implementations against each other and compare them with existing libraries like DPDK's rte_ring and Facebook's folly::ProducerConsumerQueue. Understanding the performance characteristics under different workloads will be the natural next step in this exploration.
