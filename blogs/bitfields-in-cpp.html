@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Understanding Bitfields in C++ - A Memory Optimization Guide</title>
     <link rel="stylesheet" href="../style.css">
+    
+    <!-- Prism.js for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    
     <style>
         .blog-post {
             max-width: 800px;
@@ -18,13 +22,22 @@
             color: #333;
         }
         .blog-post pre {
-            background-color: #f4f4f4;
+            background-color: #2d3748;
             padding: 1rem;
             border-radius: 5px;
             overflow-x: auto;
+            margin: 1rem 0;
+        }
+        .blog-post pre code {
+            background-color: transparent;
+            color: #e2e8f0;
         }
         .blog-post code {
             font-family: 'Courier New', Courier, monospace;
+            background-color: #f7fafc;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.9em;
         }
         .blog-post a {
             color: #007acc;
@@ -65,7 +78,7 @@
             <section>
                 <h2>How to Create Bitfields</h2>
                 <p>You declare a bitfield within a <code>struct</code> or <code>class</code> by following the member's name with a colon and the number of bits it should occupy.</p>
-                <pre><code>
+                <pre><code class="language-cpp">
 struct PacketHeader {
     unsigned int version : 4;
     unsigned int headerLength : 4;
@@ -89,7 +102,7 @@ struct PacketHeader {
 
                 <h3>Without Bitfields</h3>
                 <p>Here’s a struct with regular data types.</p>
-                <pre><code>
+                <pre><code class="language-cpp">
 #include &lt;iostream&gt;
 
 struct RegularDate {
@@ -104,7 +117,7 @@ int main() {
 }
                 </code></pre>
                 <p><b>Output:</b></p>
-                <pre><code>
+                <pre><code class="language-bash">
 Size of RegularDate: 12 bytes
                 </code></pre>
                 <p>Each <code>unsigned int</code> typically takes 4 bytes, so the total is 12 bytes.</p>
@@ -116,7 +129,7 @@ Size of RegularDate: 12 bytes
                     <li><b>Month:</b> 1-12 requires 4 bits (since 2^4 = 16).</li>
                     <li><b>Year:</b> 0-99 requires 7 bits (since 2^7 = 128).</li>
                 </ul>
-                <pre><code>
+                <pre><code class="language-cpp">
 #include &lt;iostream&gt;
 
 struct BitfieldDate {
@@ -138,7 +151,7 @@ int main() {
 }
                 </code></pre>
                 <p><b>Output:</b></p>
-                <pre><code>
+                <pre><code class="language-bash">
 Size of BitfieldDate: 4 bytes
 Date: 28/9/2025
                 </code></pre>
@@ -173,5 +186,9 @@ Date: 28/9/2025
             <p class="copyright">&copy; 2025 Dhairya Jain</p>
         </div>
     </footer>
+    
+    <!-- Prism.js for syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 </body>
 </html>
