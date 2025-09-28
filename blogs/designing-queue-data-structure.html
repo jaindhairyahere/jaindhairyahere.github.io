@@ -1763,44 +1763,39 @@ Thread1: CAS(&head, old_head, next);  // CAS(ptr_to_A, ptr_to_B)
                     participant Mem as Memory Pool
                     
                     Note over T1,Mem: Initial State: head points to Node A
-                    Queue->>Queue: head = &A, Queue: [A→B→C]
+                    Queue->>Queue: head = ptrA, Queue: A-B-C
                     
                     Note over T1,Mem: Time 1: Thread 1 starts CAS operation
-                    T1->>Queue: old_head = head (reads &A)
-                    T1->>Queue: next = old_head->next (reads &B)
+                    T1->>Queue: old_head = head (reads ptrA)
+                    T1->>Queue: next = old_head.next (reads ptrB)
                     Note right of T1: Thread 1 gets interrupted!
                     
                     Note over T1,Mem: Time 2-3: Thread 2 performs operations
                     T2->>Queue: dequeue() removes A
-                    Queue->>Queue: head = &B, Queue: [B→C]
+                    Queue->>Queue: head = ptrB, Queue: B-C
                     T2->>Mem: free(A)
                     Mem->>Mem: Node A deallocated
                     
                     T2->>Queue: dequeue() removes B  
-                    Queue->>Queue: head = &C, Queue: [C]
+                    Queue->>Queue: head = ptrC, Queue: C
                     T2->>Mem: free(B)
                     Mem->>Mem: Node B deallocated
                     
                     Note over T1,Mem: Time 4: Memory reuse (THE TRAP!)
                     T2->>Mem: malloc() returns same address
-                    Mem->>T2: Returns &A (same address!)
+                    Mem->>T2: Returns ptrA (same address!)
                     T2->>Queue: enqueue(new_data) 
-                    Queue->>Queue: head = &A, Queue: [A→C] 
+                    Queue->>Queue: head = ptrA, Queue: A-C 
                     
                     Note over T1,Mem: Time 5: Thread 1 resumes (DISASTER!)
-                    T1->>Queue: CAS(&head, &A, &B) 
-                    Note right of T1: head == &A (success!)
-                    Queue->>Queue: head = &B (INVALID!)
-                    Note right of Queue: &B points to deallocated memory!
+                    T1->>Queue: CAS(head, ptrA, ptrB) 
+                    Note right of T1: head == ptrA (success!)
+                    Queue->>Queue: head = ptrB (INVALID!)
+                    Note right of Queue: ptrB points to deallocated memory!
                     
                     Note over T1,Mem: Result: MEMORY CORRUPTION
-                    T1->>Queue: Access head->data
+                    T1->>Queue: Access head.data
                     Queue-->>T1: CRASH or garbage data!
-                    
-                    style T1 fill:#ffebee,stroke:#f44336,stroke-width:2px
-                    style T2 fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
-                    style Mem fill:#fff3e0,stroke:#ff9800,stroke-width:2px
-                    style Queue fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
                 </div>
 
                 <h5>Real-World ABA Problem in Queue Context:</h5>
