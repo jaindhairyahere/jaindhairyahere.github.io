@@ -12,10 +12,10 @@
     <style>
         /* Override any parent container width constraints */
         .blog-post {
-            max-width: 1200px !important;
-            width: 90% !important;
-            margin: 2rem auto;
-            padding: 0.5rem;
+            max-width: 1400px !important;
+            width: 92% !important;
+            margin: 1.5rem auto;
+            padding: 1rem;
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
@@ -24,12 +24,31 @@
         /* Ensure container elements don't constrain us */
         body {
             max-width: none !important;
+            margin: 0;
+            padding: 0;
         }
         
-        /* Override the main container width for this blog post */
+        /* Override the main container width for this blog post - parent CSS sets 800px */
         main {
-            max-width: 1300px !important;
-            width: 95% !important;
+            max-width: 1500px !important;
+            width: 96% !important;
+            margin: 100px auto 3rem auto !important;
+            padding: 2rem !important;
+        }
+        
+        /* Additional overrides for any content containers */
+        article {
+            max-width: none !important;
+            width: 100% !important;
+        }
+        
+        /* Make sure code blocks and diagrams use full width */
+        pre {
+            max-width: none !important;
+        }
+        
+        .mermaid {
+            max-width: none !important;
         }
         .blog-post h1, .blog-post h2, .blog-post h3 {
             color: #333;
