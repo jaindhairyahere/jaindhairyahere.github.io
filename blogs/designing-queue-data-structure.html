@@ -290,6 +290,166 @@ static void spsc_st_destroy(queue_t* queue) {
     free(q);
 }
                 </code></pre>
+
+                <h3>Optimizing the Ordering Wait Loop</h3>
+                <p>The spin-wait in Step 3 is a critical performance bottleneck. Let's examine the alternatives and their trade-offs:</p>
+
+                <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 1rem; margin: 1rem 0;">
+                    <h4>🚨 The Ordering Problem</h4>
+                    <p>We need to wait for our turn to update <code>consumer_tail</code> to maintain FIFO ordering. However, the naive spin-loop wastes CPU cycles and can cause performance degradation.</p>
+                </div>
+
+                <h4>Optimization Strategies (Best to Worst):</h4>
+                
+                <div class="assembly-comparison">
+                    <div class="assembly-pane with-barrier">
+                        <div class="assembly-header">🏆 Best: CPU-Specific Instructions</div>
+                        <pre><code class="language-c">
+// x86_64: PAUSE instruction
+#ifdef __x86_64__
+    while (q->consumer_tail != consumer_idx) {
+        _mm_pause();  // Reduces power, improves SMT performance
+    }
+#endif
+
+// ARM64: YIELD instruction  
+#ifdef __aarch64__
+    while (q->consumer_tail != consumer_idx) {
+        __asm__ __volatile__("yield" ::: "memory");
+    }
+#endif
+                        </code></pre>
+                        <p><strong>Benefits:</strong> Low latency, hardware-optimized, improves simultaneous multithreading</p>
+                    </div>
+                    
+                    <div class="assembly-pane without-barrier">
+                        <div class="assembly-header">⚠️ Alternative: Remove Ordering Requirement</div>
+                        <pre><code class="language-c">
+// RELAXED ORDERING: Allow out-of-order tail updates
+static queue_result_t spmc_dequeue_relaxed(queue_t* queue, queue_data_t* data) {
+    spmc_queue_t* q = (spmc_queue_t*)queue;
+    size_t consumer_idx;
+    
+    // Step 1: Reserve slot (same as before)
+    do {
+        consumer_idx = q->consumer_head;
+        if (consumer_idx == q->producer_idx) {
+            return QUEUE_EMPTY;
+        }
+    } while (!CAS(&q->consumer_head, consumer_idx, 
+                  (consumer_idx + 1) % (q->base.capacity + 1)));
+    
+    // Step 2: Read data (same as before)
+    *data = q->buffer[consumer_idx];
+    
+    // Step 3: Update minimum consumed index using CAS loop
+    size_t current_tail;
+    do {
+        current_tail = q->consumer_tail;
+        // Only update if our index is the next expected one
+        if (consumer_idx != current_tail) {
+            return QUEUE_SUCCESS; // Let another thread handle tail update
+        }
+        // Try to advance tail, accounting for potential gaps
+        size_t new_tail = current_tail + 1;
+        // Scan for consecutive completed slots
+        while (new_tail != q->consumer_head && 
+               is_slot_completed(q, new_tail)) {
+            new_tail = (new_tail + 1) % (q->base.capacity + 1);
+        }
+    } while (!CAS(&q->consumer_tail, current_tail, new_tail));
+    
+    return QUEUE_SUCCESS;
+}
+                        </code></pre>
+                        <p><strong>Complexity:</strong> Requires additional per-slot completion tracking</p>
+                    </div>
+                </div>
+
+                <h4>Performance Analysis:</h4>
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa;">
+                            <th style="border: 1px solid #dee2e6; padding: 0.5rem;">Approach</th>
+                            <th style="border: 1px solid #dee2e6; padding: 0.5rem;">Latency</th>
+                            <th style="border: 1px solid #dee2e6; padding: 0.5rem;">CPU Usage</th>
+                            <th style="border: 1px solid #dee2e6; padding: 0.5rem;">Complexity</th>
+                            <th style="border: 1px solid #dee2e6; padding: 0.5rem;">Memory Overhead</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;"><strong>PAUSE/YIELD</strong></td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">~1-5ns</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #ffc107;">Medium</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">Low</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">None</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;"><strong>Relaxed Ordering</strong></td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">~1-2ns</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">Low</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #dc3545;">High</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #dc3545;">+1 bit/slot</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;"><strong>sched_yield()</strong></td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #dc3545;">~1000ns</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">Low</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">Low</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">None</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;"><strong>Naive Spin</strong></td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">~1ns</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #dc3545;">100%</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">Low</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem; color: #28a745;">None</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>🎯 Recommended Approach: Hybrid Strategy</h4>
+                <pre><code class="language-c">
+// Optimal waiting strategy with adaptive behavior
+static inline void optimal_wait_for_turn(volatile size_t* tail, size_t expected_idx) {
+    const int MAX_SPIN_COUNT = 100;  // Tunable based on workload
+    int spin_count = 0;
+    
+    while (*tail != expected_idx) {
+        if (spin_count < MAX_SPIN_COUNT) {
+            // Phase 1: Short spin with CPU-specific pause
+            #if defined(__x86_64__) || defined(_M_X64)
+                _mm_pause();
+            #elif defined(__aarch64__)
+                __asm__ __volatile__("yield" ::: "memory");
+            #endif
+            spin_count++;
+        } else {
+            // Phase 2: Yield to scheduler for longer waits
+            sched_yield();
+            spin_count = 0;  // Reset for next iteration
+        }
+    }
+}
+
+// Usage in dequeue function:
+optimal_wait_for_turn(&q->consumer_tail, consumer_idx);
+                </code></pre>
+
+                <p><strong>Why This Hybrid Approach Works Best:</strong></p>
+                <ul>
+                    <li><strong>Short waits (~100 cycles):</strong> Use hardware-optimized pause instructions</li>
+                    <li><strong>Long waits:</strong> Yield CPU to avoid wasting resources</li>
+                    <li><strong>Adaptive:</strong> Automatically adjusts to different workload patterns</li>
+                    <li><strong>Platform-specific:</strong> Uses best available instruction per architecture</li>
+                </ul>
+
+                <div style="background-color: #c6f6d5; padding: 1rem; border-radius: 5px; border-left: 4px solid #48bb78; margin: 1rem 0;">
+                    <h4 style="color: #2f855a; margin-top: 0;">Production Tip:</h4>
+                    <p>In high-frequency trading systems, the hybrid approach with tuned MAX_SPIN_COUNT (typically 50-200 cycles) provides the best balance between latency and CPU efficiency. The exact value should be determined through benchmarking with your specific workload.</p>
+                </div>
+
             </div>
 
             <div class="implementation-box">
@@ -641,19 +801,767 @@ int main() {
                 <p>These implementations will demonstrate advanced concepts like ABA problem mitigation, epoch-based memory reclamation, and high-performance atomic operations.</p>
             </div>
 
+            <div class="implementation-box">
+                <h2>Implementation 3: SPMCQueue (MT) - Single Producer, Multiple Consumer</h2>
+                <p>The SPMC queue allows one producer thread to serve multiple consumer threads. This is common in scenarios like event distribution systems, where one event producer feeds multiple worker threads.</p>
+
+                <h3>The Two-Heads Problem and Solution</h3>
+                <p>When multiple consumers compete for the same data, we face a critical race condition that simple atomic operations cannot solve. Let's examine why we need the two-heads approach.</p>
+
+                <h4>❌ Naive Approach - Why It Fails</h4>
+                <pre><code class="language-c">
+// BROKEN: Multiple consumers with single consumer_idx
+static queue_result_t spmc_dequeue_broken(queue_t* queue, queue_data_t* data) {
+    spmc_queue_t* q = (spmc_queue_t*)queue;
+    
+    // RACE CONDITION: Multiple consumers read same index
+    size_t consumer_idx = q->consumer_idx;
+    
+    if (consumer_idx == q->producer_idx) {
+        return QUEUE_EMPTY;
+    }
+    
+    // Multiple threads might read the same data!
+    *data = q->buffer[consumer_idx];
+    
+    // RACE CONDITION: Multiple threads increment same index
+    q->consumer_idx = (consumer_idx + 1) % (q->base.capacity + 1);
+    
+    return QUEUE_SUCCESS;
+}
+                </code></pre>
+
+                <div style="background-color: #fed7d7; padding: 1rem; border-radius: 5px; border-left: 4px solid #f56565; margin: 1rem 0;">
+                    <h4 style="color: #c53030; margin-top: 0;">Race Condition Scenarios:</h4>
+                    <ul>
+                        <li><strong>Double Read:</strong> Two consumers read the same data item</li>
+                        <li><strong>Lost Data:</strong> Consumer index jumps by 2, skipping an item</li>
+                        <li><strong>ABA Problem:</strong> Index appears unchanged but data was consumed twice</li>
+                        <li><strong>Memory Ordering:</strong> Index update visible before data read completes</li>
+                    </ul>
+                </div>
+
+                <h4>✅ Two-Heads Solution</h4>
+                <p>The solution is to separate the "reservation" of a slot from the actual consumption. We use two consumer indices:</p>
+                <ul>
+                    <li><strong>consumer_head:</strong> Points to the next slot to be reserved (atomically incremented)</li>
+                    <li><strong>consumer_tail:</strong> Points to the next slot the producer can overwrite (updated after consumption)</li>
+                </ul>
+
+                <h3>Data Structure</h3>
+                <pre><code class="language-c">
+// Single Producer Multiple Consumer Queue - Multi Threaded
+typedef struct {
+    queue_t base;                           // Base queue structure
+    queue_data_t* buffer;                  // Circular buffer
+    volatile size_t producer_idx;           // Producer write index
+    volatile size_t consumer_head;          // Consumer reservation index (CAS)
+    volatile size_t consumer_tail;          // Consumer completion index
+} spmc_queue_t;
+                </code></pre>
+
+                <h3>Implementation with Atomic CAS</h3>
+                <pre><code class="language-c">
+// Required includes for hardware-optimized waiting
+#ifdef __x86_64__
+    #include &lt;immintrin.h&gt;  // For _mm_pause()
+#endif
+#include &lt;sched.h&gt;  // For sched_yield()
+
+// Atomic Compare-And-Swap helpers
+#ifdef _WIN32
+    #define CAS(ptr, expected, desired) \
+        (InterlockedCompareExchange64((LONG64*)(ptr), (desired), (expected)) == (expected))
+#elif defined(__GNUC__)
+    #define CAS(ptr, expected, desired) \
+        __sync_bool_compare_and_swap((ptr), (expected), (desired))
+#else
+    #error "Unsupported compiler/platform for CAS operations"
+#endif
+
+// Forward declarations for SPMC queue
+static bool spmc_is_full(const queue_t* queue);
+static bool spmc_is_empty(const queue_t* queue);
+static queue_result_t spmc_enqueue(queue_t* queue, queue_data_t data);
+static queue_result_t spmc_dequeue(queue_t* queue, queue_data_t* data);
+static void spmc_destroy(queue_t* queue);
+
+// Operation table for SPMC queue
+static const queue_ops_t spmc_ops = {
+    .is_full = spmc_is_full,
+    .is_empty = spmc_is_empty,
+    .enqueue = spmc_enqueue,
+    .dequeue = spmc_dequeue,
+    .destroy = spmc_destroy
+};
+
+// Create SPMC queue
+queue_t* spmc_queue_create(size_t capacity) {
+    spmc_queue_t* queue = malloc(sizeof(spmc_queue_t));
+    if (!queue) return NULL;
+    
+    queue->buffer = malloc(sizeof(queue_data_t) * (capacity + 1));
+    if (!queue->buffer) {
+        free(queue);
+        return NULL;
+    }
+    
+    queue->base.ops = &spmc_ops;
+    queue->base.capacity = capacity;
+    queue->producer_idx = 0;
+    queue->consumer_head = 0;
+    queue->consumer_tail = 0;
+    
+    return (queue_t*)queue;
+}
+
+static bool spmc_is_full(const queue_t* queue) {
+    const spmc_queue_t* q = (const spmc_queue_t*)queue;
+    
+    // Queue is full when producer would overwrite unreleased consumer slot
+    size_t next_producer = (q->producer_idx + 1) % (q->base.capacity + 1);
+    return next_producer == q->consumer_tail;
+}
+
+static bool spmc_is_empty(const queue_t* queue) {
+    const spmc_queue_t* q = (const spmc_queue_t*)queue;
+    
+    // Queue is empty when consumer head catches up to producer
+    return q->consumer_head == q->producer_idx;
+}
+
+// Producer (single threaded, same as SPSC)
+static queue_result_t spmc_enqueue(queue_t* queue, queue_data_t data) {
+    spmc_queue_t* q = (spmc_queue_t*)queue;
+    
+    size_t next_producer_idx = (q->producer_idx + 1) % (q->base.capacity + 1);
+    
+    // Check if queue is full (can't overwrite unreleased consumer data)
+    if (next_producer_idx == q->consumer_tail) {
+        return QUEUE_FULL;
+    }
+    
+    // Write data first
+    q->buffer[q->producer_idx] = data;
+    
+    // Memory barrier ensures data is written before index update
+    MEMORY_BARRIER();
+    
+    // Update producer index
+    q->producer_idx = next_producer_idx;
+    
+    return QUEUE_SUCCESS;
+}
+
+// Consumer (multi-threaded with CAS)
+static queue_result_t spmc_dequeue(queue_t* queue, queue_data_t* data) {
+    spmc_queue_t* q = (spmc_queue_t*)queue;
+    size_t consumer_idx;
+    
+    do {
+        // Step 1: Atomically reserve a slot
+        consumer_idx = q->consumer_head;
+        
+        // Check if queue is empty
+        if (consumer_idx == q->producer_idx) {
+            return QUEUE_EMPTY;
+        }
+        
+        // Try to reserve this slot using CAS
+        // If successful, we "own" this slot and can safely read from it
+    } while (!CAS(&q->consumer_head, consumer_idx, 
+                  (consumer_idx + 1) % (q->base.capacity + 1)));
+    
+    // Step 2: Read data from our reserved slot
+    // No race condition here - we own this slot exclusively
+    *data = q->buffer[consumer_idx];
+    
+    // Step 3: Wait for our turn to update consumer_tail (OPTIMIZED HYBRID APPROACH)
+    // This ensures consumer_tail advances in order
+    const int MAX_SPIN_COUNT = 100;  // Tunable: 50-200 for HFT, 100-500 for general use
+    int spin_count = 0;
+    
+    while (q->consumer_tail != consumer_idx) {
+        if (spin_count < MAX_SPIN_COUNT) {
+            // Phase 1: Hardware-optimized short spin
+            #if defined(__x86_64__) || defined(_M_X64)
+                _mm_pause();  // x86 PAUSE: reduces power, improves SMT performance
+            #elif defined(__aarch64__)
+                __asm__ __volatile__("yield" ::: "memory");  // ARM64 yield
+            #else
+                // Compiler barrier to prevent optimization
+                __asm__ __volatile__("" ::: "memory");
+            #endif
+            spin_count++;
+        } else {
+            // Phase 2: Yield CPU for longer waits to avoid resource waste
+            sched_yield();
+            spin_count = 0;  // Reset counter for next iteration
+        }
+    }
+    
+    // Step 4: Advance consumer_tail to release the slot
+    // Memory barrier ensures data read completes before tail update
+    MEMORY_BARRIER();
+    q->consumer_tail = (consumer_idx + 1) % (q->base.capacity + 1);
+    
+    return QUEUE_SUCCESS;
+}
+
+static void spmc_destroy(queue_t* queue) {
+    spmc_queue_t* q = (spmc_queue_t*)queue;
+    free(q->buffer);
+    free(q);
+}
+                </code></pre>
+
+                <h3>Why Two-Heads Is The Only Solution</h3>
+                <div style="background-color: #c6f6d5; padding: 1rem; border-radius: 5px; border-left: 4px solid #48bb78; margin: 1rem 0;">
+                    <h4 style="color: #2f855a; margin-top: 0;">The Two-Heads Protocol:</h4>
+                    <ol>
+                        <li><strong>Reservation Phase:</strong> CAS on consumer_head atomically reserves a slot</li>
+                        <li><strong>Consumption Phase:</strong> Read data from reserved slot (no contention)</li>
+                        <li><strong>Ordering Phase:</strong> Wait for turn to update consumer_tail</li>
+                        <li><strong>Release Phase:</strong> Update consumer_tail to free the slot for producer</li>
+                    </ol>
+                </div>
+
+                <h4>Alternative Approaches and Why They Fail:</h4>
+                <ul>
+                    <li><strong>Single Index with Lock:</strong> Defeats the purpose of lock-free design</li>
+                    <li><strong>CAS on Single Index:</strong> ABA problem and lost updates</li>
+                    <li><strong>Multiple Queues:</strong> Load balancing issues and complexity</li>
+                    <li><strong>Work Stealing:</strong> More complex, requires dynamic arrays</li>
+                </ul>
+
+                <h3>Performance Characteristics</h3>
+                <p>The SPMC queue provides excellent performance for the single producer (same as SPSC) while allowing multiple consumers to scale effectively:</p>
+                <ul>
+                    <li><strong>Producer:</strong> O(1) lock-free enqueue, no contention</li>
+                    <li><strong>Consumer:</strong> O(1) lock-free dequeue with CAS retry</li>
+                    <li><strong>Scalability:</strong> Consumers scale well until memory bandwidth limits</li>
+                    <li><strong>Ordering:</strong> Maintains FIFO semantics despite parallel consumption</li>
+                </ul>
+
+                <h3>Usage Example</h3>
+                <pre><code class="language-c">
+#include &lt;pthread.h&gt;
+#include &lt;unistd.h&gt;
+
+#define NUM_CONSUMERS 4
+#define NUM_ITEMS 1000
+
+typedef struct {
+    queue_t* queue;
+    int thread_id;
+} consumer_arg_t;
+
+void* producer_thread(void* arg) {
+    queue_t* queue = (queue_t*)arg;
+    
+    for (int i = 0; i < NUM_ITEMS; i++) {
+        while (queue->ops->enqueue(queue, i) != QUEUE_SUCCESS) {
+            usleep(1); // Brief pause if queue is full
+        }
+        printf("Produced: %d\n", i);
+    }
+    return NULL;
+}
+
+void* consumer_thread(void* arg) {
+    consumer_arg_t* args = (consumer_arg_t*)arg;
+    queue_t* queue = args->queue;
+    int thread_id = args->thread_id;
+    queue_data_t data;
+    
+    while (true) {
+        if (queue->ops->dequeue(queue, &data) == QUEUE_SUCCESS) {
+            printf("Consumer %d got: %d\n", thread_id, data);
+        } else {
+            usleep(10); // Brief pause if queue is empty
+        }
+    }
+    return NULL;
+}
+
+int main() {
+    queue_t* queue = spmc_queue_create(64);
+    pthread_t producer;
+    pthread_t consumers[NUM_CONSUMERS];
+    consumer_arg_t consumer_args[NUM_CONSUMERS];
+    
+    // Create consumer threads
+    for (int i = 0; i < NUM_CONSUMERS; i++) {
+        consumer_args[i].queue = queue;
+        consumer_args[i].thread_id = i;
+        pthread_create(&consumers[i], NULL, consumer_thread, &consumer_args[i]);
+    }
+    
+    // Create producer thread
+    pthread_create(&producer, NULL, producer_thread, queue);
+    
+    // Wait for producer to complete
+    pthread_join(producer, NULL);
+    
+    // Give consumers time to finish
+    sleep(1);
+    
+    // Cancel consumer threads (they run indefinitely)
+    for (int i = 0; i < NUM_CONSUMERS; i++) {
+        pthread_cancel(consumers[i]);
+    }
+    
+    queue->ops->destroy(queue);
+    return 0;
+}
+                </code></pre>
+            </div>
+
+            <div class="implementation-box">
+                <h2>Implementation 4: MPSCQueue (MT) - Multiple Producer, Single Consumer</h2>
+                <p>The MPSC queue allows multiple producer threads to feed a single consumer thread. This pattern is common in logging systems, event aggregation, and centralized processing architectures where multiple worker threads report to a single coordinator.</p>
+
+                <h3>The Two-Heads Pattern for Producers</h3>
+                <p>Just like SPMC needed two consumer indices, MPSC needs two producer indices to handle multiple producers safely. The pattern is symmetric:</p>
+
+                <ul>
+                    <li><strong>producer_head:</strong> Points to the next slot to be reserved by producers (atomically incremented)</li>
+                    <li><strong>producer_tail:</strong> Points to the next slot available for consumer reading (updated after production)</li>
+                </ul>
+
+                <h3>Data Structure</h3>
+                <pre><code class="language-c">
+// Multiple Producer Single Consumer Queue - Multi Threaded
+typedef struct {
+    queue_t base;                           // Base queue structure
+    queue_data_t* buffer;                  // Circular buffer
+    volatile size_t producer_head;          // Producer reservation index (CAS)
+    volatile size_t producer_tail;          // Producer completion index
+    volatile size_t consumer_idx;           // Consumer read index
+} mpsc_queue_t;
+                </code></pre>
+
+                <h3>Implementation with Producer Ordering</h3>
+                <pre><code class="language-c">
+// Forward declarations for MPSC queue
+static bool mpsc_is_full(const queue_t* queue);
+static bool mpsc_is_empty(const queue_t* queue);
+static queue_result_t mpsc_enqueue(queue_t* queue, queue_data_t data);
+static queue_result_t mpsc_dequeue(queue_t* queue, queue_data_t* data);
+static void mpsc_destroy(queue_t* queue);
+
+// Operation table for MPSC queue
+static const queue_ops_t mpsc_ops = {
+    .is_full = mpsc_is_full,
+    .is_empty = mpsc_is_empty,
+    .enqueue = mpsc_enqueue,
+    .dequeue = mpsc_dequeue,
+    .destroy = mpsc_destroy
+};
+
+// Create MPSC queue
+queue_t* mpsc_queue_create(size_t capacity) {
+    mpsc_queue_t* queue = malloc(sizeof(mpsc_queue_t));
+    if (!queue) return NULL;
+    
+    queue->buffer = malloc(sizeof(queue_data_t) * (capacity + 1));
+    if (!queue->buffer) {
+        free(queue);
+        return NULL;
+    }
+    
+    queue->base.ops = &mpsc_ops;
+    queue->base.capacity = capacity;
+    queue->producer_head = 0;
+    queue->producer_tail = 0;
+    queue->consumer_idx = 0;
+    
+    return (queue_t*)queue;
+}
+
+static bool mpsc_is_full(const queue_t* queue) {
+    const mpsc_queue_t* q = (const mpsc_queue_t*)queue;
+    
+    // Queue is full when producer would overwrite unconsumed data
+    size_t next_producer = (q->producer_head + 1) % (q->base.capacity + 1);
+    return next_producer == q->consumer_idx;
+}
+
+static bool mpsc_is_empty(const queue_t* queue) {
+    const mpsc_queue_t* q = (const mpsc_queue_t*)queue;
+    
+    // Queue is empty when consumer catches up to producer tail
+    return q->consumer_idx == q->producer_tail;
+}
+
+// Producer (multi-threaded with CAS and ordering)
+static queue_result_t mpsc_enqueue(queue_t* queue, queue_data_t data) {
+    mpsc_queue_t* q = (mpsc_queue_t*)queue;
+    size_t producer_idx;
+    
+    do {
+        // Step 1: Atomically reserve a slot
+        producer_idx = q->producer_head;
+        
+        // Check if queue is full
+        size_t next_producer = (producer_idx + 1) % (q->base.capacity + 1);
+        if (next_producer == q->consumer_idx) {
+            return QUEUE_FULL;
+        }
+        
+        // Try to reserve this slot using CAS
+        // If successful, we "own" this slot and can safely write to it
+    } while (!CAS(&q->producer_head, producer_idx, next_producer));
+    
+    // Step 2: Write data to our reserved slot
+    // No race condition here - we own this slot exclusively
+    q->buffer[producer_idx] = data;
+    
+    // Step 3: Wait for our turn to update producer_tail (HYBRID APPROACH)
+    // This ensures producer_tail advances in order for consumer safety
+    const int MAX_SPIN_COUNT = 100;  // Tunable based on workload
+    int spin_count = 0;
+    
+    while (q->producer_tail != producer_idx) {
+        if (spin_count < MAX_SPIN_COUNT) {
+            // Phase 1: Hardware-optimized short spin
+            #if defined(__x86_64__) || defined(_M_X64)
+                _mm_pause();  // x86 PAUSE: reduces power, improves SMT performance
+            #elif defined(__aarch64__)
+                __asm__ __volatile__("yield" ::: "memory");  // ARM64 yield
+            #else
+                // Compiler barrier to prevent optimization
+                __asm__ __volatile__("" ::: "memory");
+            #endif
+            spin_count++;
+        } else {
+            // Phase 2: Yield CPU for longer waits to avoid resource waste
+            sched_yield();
+            spin_count = 0;  // Reset counter for next iteration
+        }
+    }
+    
+    // Step 4: Advance producer_tail to make data visible to consumer
+    // Memory barrier ensures data write completes before tail update
+    MEMORY_BARRIER();
+    q->producer_tail = next_producer;
+    
+    return QUEUE_SUCCESS;
+}
+
+// Consumer (single-threaded, simplified)
+static queue_result_t mpsc_dequeue(queue_t* queue, queue_data_t* data) {
+    mpsc_queue_t* q = (mpsc_queue_t*)queue;
+    
+    // Check if queue is empty
+    if (q->consumer_idx == q->producer_tail) {
+        return QUEUE_EMPTY;
+    }
+    
+    // Read data from buffer
+    *data = q->buffer[q->consumer_idx];
+    
+    // Memory barrier ensures data is read before index update
+    MEMORY_BARRIER();
+    
+    // Update consumer index
+    q->consumer_idx = (q->consumer_idx + 1) % (q->base.capacity + 1);
+    
+    return QUEUE_SUCCESS;
+}
+
+static void mpsc_destroy(queue_t* queue) {
+    mpsc_queue_t* q = (mpsc_queue_t*)queue;
+    free(q->buffer);
+    free(q);
+}
+                </code></pre>
+
+                <h3>Symmetric Design with SPMC</h3>
+                <p>Notice how MPSC mirrors SPMC but with roles reversed:</p>
+                
+                <div class="assembly-comparison">
+                    <div class="assembly-pane with-barrier">
+                        <div class="assembly-header">SPMC: Complex Consumer, Simple Producer</div>
+                        <pre><code class="language-c">
+// SPMC Consumer (complex)
+do {
+    consumer_idx = q->consumer_head;
+    if (consumer_idx == q->producer_idx) return QUEUE_EMPTY;
+} while (!CAS(&q->consumer_head, consumer_idx, next));
+
+*data = q->buffer[consumer_idx];
+wait_for_turn(q->consumer_tail, consumer_idx);
+q->consumer_tail = next;
+
+// SPMC Producer (simple)
+q->buffer[q->producer_idx] = data;
+MEMORY_BARRIER();
+q->producer_idx = next;
+                        </code></pre>
+                    </div>
+                    
+                    <div class="assembly-pane without-barrier">
+                        <div class="assembly-header">MPSC: Complex Producer, Simple Consumer</div>
+                        <pre><code class="language-c">
+// MPSC Producer (complex)
+do {
+    producer_idx = q->producer_head;
+    if (next == q->consumer_idx) return QUEUE_FULL;
+} while (!CAS(&q->producer_head, producer_idx, next));
+
+q->buffer[producer_idx] = data;
+wait_for_turn(q->producer_tail, producer_idx);
+q->producer_tail = next;
+
+// MPSC Consumer (simple)
+*data = q->buffer[q->consumer_idx];
+MEMORY_BARRIER();
+q->consumer_idx = next;
+                        </code></pre>
+                    </div>
+                </div>
+
+                <h3>Why Producer Ordering Matters</h3>
+                <div style="background-color: #c6f6d5; padding: 1rem; border-radius: 5px; border-left: 4px solid #48bb78; margin: 1rem 0;">
+                    <h4 style="color: #2f855a; margin-top: 0;">Producer Ordering Protocol:</h4>
+                    <ol>
+                        <li><strong>Reservation Phase:</strong> CAS on producer_head reserves a slot</li>
+                        <li><strong>Production Phase:</strong> Write data to reserved slot (no contention)</li>
+                        <li><strong>Ordering Phase:</strong> Wait for turn to update producer_tail</li>
+                        <li><strong>Release Phase:</strong> Update producer_tail to make data visible to consumer</li>
+                    </ol>
+                </div>
+
+                <h4>Without Ordering - The Race Condition:</h4>
+                <pre><code class="language-c">
+// BROKEN: Without producer ordering
+// Thread A reserves slot 5, Thread B reserves slot 6
+// Thread B writes data and updates producer_tail to 7
+// Thread A is still writing to slot 5
+// Consumer sees producer_tail = 7, reads slots 5,6 
+// Consumer might read incomplete data from slot 5!
+                </code></pre>
+
+                <h3>Performance Characteristics</h3>
+                <ul>
+                    <li><strong>Producer:</strong> O(1) lock-free with CAS retry and ordering wait</li>
+                    <li><strong>Consumer:</strong> O(1) lock-free, no contention (same as SPSC)</li>
+                    <li><strong>Scalability:</strong> Producers scale well until memory bandwidth limits</li>
+                    <li><strong>Ordering:</strong> Maintains FIFO semantics despite parallel production</li>
+                </ul>
+
+                <h3>Usage Example: Multi-Producer Logging System</h3>
+                <pre><code class="language-c">
+#include &lt;pthread.h&gt;
+#include &lt;unistd.h&gt;
+
+#define NUM_PRODUCERS 4
+#define NUM_ITEMS 250  // Each producer sends 250 items (1000 total)
+
+typedef struct {
+    queue_t* queue;
+    int thread_id;
+} producer_arg_t;
+
+void* producer_thread(void* arg) {
+    producer_arg_t* args = (producer_arg_t*)arg;
+    queue_t* queue = args->queue;
+    int thread_id = args->thread_id;
+    
+    for (int i = 0; i < NUM_ITEMS; i++) {
+        int data = thread_id * 1000 + i;  // Encode thread ID in data
+        
+        while (queue->ops->enqueue(queue, data) != QUEUE_SUCCESS) {
+            usleep(1); // Brief pause if queue is full
+        }
+        printf("Producer %d sent: %d\n", thread_id, data);
+    }
+    return NULL;
+}
+
+void* consumer_thread(void* arg) {
+    queue_t* queue = (queue_t*)arg;
+    queue_data_t data;
+    int consumed_count = 0;
+    
+    while (consumed_count < NUM_PRODUCERS * NUM_ITEMS) {
+        if (queue->ops->dequeue(queue, &data) == QUEUE_SUCCESS) {
+            int producer_id = data / 1000;
+            int item_id = data % 1000;
+            printf("Consumer got item %d from producer %d\n", item_id, producer_id);
+            consumed_count++;
+        } else {
+            usleep(10); // Brief pause if queue is empty
+        }
+    }
+    printf("Consumer processed all %d items\n", consumed_count);
+    return NULL;
+}
+
+int main() {
+    queue_t* queue = mpsc_queue_create(128);
+    pthread_t consumer;
+    pthread_t producers[NUM_PRODUCERS];
+    producer_arg_t producer_args[NUM_PRODUCERS];
+    
+    // Create consumer thread
+    pthread_create(&consumer, NULL, consumer_thread, queue);
+    
+    // Create producer threads
+    for (int i = 0; i < NUM_PRODUCERS; i++) {
+        producer_args[i].queue = queue;
+        producer_args[i].thread_id = i;
+        pthread_create(&producers[i], NULL, producer_thread, &producer_args[i]);
+    }
+    
+    // Wait for all producers to complete
+    for (int i = 0; i < NUM_PRODUCERS; i++) {
+        pthread_join(producers[i], NULL);
+    }
+    
+    // Wait for consumer to finish processing
+    pthread_join(consumer, NULL);
+    
+    queue->ops->destroy(queue);
+    return 0;
+}
+                </code></pre>
+            </div>
+
+            <div class="implementation-section">
+                <h2>5. MPMC Queue (Multiple Producer Multiple Consumer) - MT</h2>
+                <p>The holy grail of lock-free queues - supporting multiple producers AND multiple consumers simultaneously. This is the most complex implementation, requiring:</p>
+                <ul>
+                    <li><strong>Four Indices</strong>: producer_head, producer_tail, consumer_head, consumer_tail</li>
+                    <li><strong>ABA Problem Mitigation</strong>: Using tagged pointers with version counters</li>
+                    <li><strong>Advanced Ordering</strong>: Per-slot state tracking for ordered completion</li>
+                    <li><strong>Sophisticated CAS Operations</strong>: Tagged compare-and-swap to prevent race conditions</li>
+                </ul>
+                
+                <div class="note">
+                    <p><strong>📁 Complete Implementation Available:</strong></p>
+                    <p>Due to the complexity of MPMC implementation (300+ lines with ABA protection, tagged pointers, and comprehensive testing), the complete code is available in a separate file:</p>
+                    <p><a href="queue.c" target="_blank"><strong>🔗 View Complete MPMC Implementation (queue.c)</strong></a></p>
+                    <p>The file includes:</p>
+                    <ul>
+                        <li>Production-ready MPMC queue with tagged pointers</li>
+                        <li>ABA problem mitigation using version tags</li>
+                        <li>Per-slot completion tracking</li>
+                        <li>Comprehensive multi-threaded test with 2 producers and 3 consumers</li>
+                        <li>Performance optimization with hybrid waiting strategies</li>
+                    </ul>
+                </div>
+
+                <h3>Key MPMC Concepts Demonstrated:</h3>
+                
+                <h4>1. The ABA Problem</h4>
+                <p>When thread A reads a value, gets interrupted, and another thread B changes and then restores the same value, thread A's CAS succeeds incorrectly:</p>
+                
+                <pre><code class="language-c">// ABA Problem Example:
+// Time 1: Thread A reads head.index = 5
+// Time 2: Thread B dequeues item (head becomes 6)  
+// Time 3: Thread B enqueues item (head becomes 5 again!)
+// Time 4: Thread A's CAS(5, 6) succeeds incorrectly!
+
+// Solution: Tagged Pointers
+typedef struct {
+    size_t index;  // Actual index value
+    size_t tag;    // Version counter - always increments
+} tagged_index_t;</code></pre>
+
+                <h4>2. Four-Index Protocol</h4>
+                <p>MPMC requires four indices to handle concurrent producers and consumers:</p>
+                
+                <pre><code class="language-c">// MPMC Queue Structure  
+typedef struct {
+    // Producer indices (multiple threads competing)
+    _Atomic tagged_index_t producer_head;  // Reservation via CAS
+    volatile size_t producer_tail;         // Completion marker
+    
+    // Consumer indices (multiple threads competing)  
+    _Atomic tagged_index_t consumer_head;  // Reservation via CAS
+    volatile size_t consumer_tail;         // Completion marker
+    
+    _Atomic bool* slot_ready;             // Per-slot completion flags
+} mpmc_queue_t;</code></pre>
+
+                <h4>3. Tagged CAS Operations</h4>
+                <p>Every reservation uses tagged CAS to prevent ABA problems:</p>
+                
+                <pre><code class="language-c">// Producer Reservation with ABA Protection
+do {
+    current_head = atomic_load(&queue->producer_head);
+    
+    // Prepare new head with incremented tag
+    new_head.index = (current_head.index + 1) % capacity;
+    new_head.tag = current_head.tag + 1;  // Always increment!
+    
+    // Tagged CAS prevents ABA problem
+} while (!CAS(&queue->producer_head, current_head, new_head));</code></pre>
+            </div>
+
             <section>
                 <h2>Conclusion</h2>
-                <p>We've successfully implemented two foundational queue data structures: a simple single-threaded SPSC queue and its thread-safe counterpart using memory barriers. The progression from ST to MT demonstrates the careful considerations required when designing concurrent data structures.</p>
+                <p>We've successfully implemented five progressively sophisticated queue data structures: SPSC (ST), SPSC (MT), SPMC (MT), MPSC (MT), and MPMC (MT). Each implementation demonstrates key concepts in concurrent programming and lock-free data structure design.</p>
                 
                 <p>Key takeaways:</p>
                 <ul>
-                    <li>Lock-free data structures can provide excellent performance in high-throughput scenarios</li>
-                    <li>Memory barriers are crucial for maintaining correctness in concurrent environments</li>
-                    <li>A well-designed interface allows for easy evolution from simple to complex implementations</li>
-                    <li>Understanding CPU and compiler optimizations is essential for low-level systems programming</li>
+                    <li><strong>Memory Barriers:</strong> Critical for maintaining correctness in concurrent environments</li>
+                    <li><strong>Atomic CAS Operations:</strong> Enable lock-free coordination between multiple threads</li>
+                    <li><strong>Two-Heads Protocol:</strong> The essential solution for multi-threaded scenarios, separating reservation from completion</li>
+                    <li><strong>Hybrid Waiting Strategy:</strong> Optimal performance combining hardware pause instructions with scheduler yields</li>
+                    <li><strong>Symmetric Design:</strong> SPMC and MPSC mirror each other with complexity shifting between producer and consumer</li>
+                    <li><strong>ABA Problem Mitigation:</strong> Advanced scenarios require tagged pointers or epoch-based memory management</li>
+                    <li><strong>Race Condition Analysis:</strong> Understanding failure modes is essential for correct concurrent design</li>
+                    <li><strong>Performance vs Complexity:</strong> Each additional thread type significantly increases design complexity</li>
                 </ul>
                 
-                <p>These queue implementations form the foundation for more advanced concurrent data structures and are commonly used in high-performance systems, game engines, and real-time applications where predictable latency and high throughput are critical.</p>
+                <p>These queue implementations form the foundation for high-performance systems where predictable latency and maximum throughput are critical. The progression from simple single-threaded to complex multi-producer/multi-consumer demonstrates the careful engineering required for reliable concurrent systems.</p>
+                
+                <h3>Implementation Summary</h3>
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa;">
+                            <th style="border: 1px solid #dee2e6; padding: 0.5rem;">Queue Type</th>
+                            <th style="border: 1px solid #dee2e6; padding: 0.5rem;">Indices</th>
+                            <th style="border: 1px solid #dee2e6; padding: 0.5rem;">Complex Side</th>
+                            <th style="border: 1px solid #dee2e6; padding: 0.5rem;">Use Cases</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;"><strong>SPSC (ST)</strong></td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">2 (producer_idx, consumer_idx)</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">Neither</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">Single-threaded pipelines</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;"><strong>SPSC (MT)</strong></td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">2 (producer_idx, consumer_idx)</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">Neither</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">Thread communication, ring buffers</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;"><strong>SPMC (MT)</strong></td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">3 (producer_idx, consumer_head, consumer_tail)</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">Consumer</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">Event distribution, work distribution</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;"><strong>MPSC (MT)</strong></td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">3 (producer_head, producer_tail, consumer_idx)</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">Producer</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">Logging, event aggregation</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;"><strong>MPMC (MT)</strong></td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">4 + slot tracking (all tagged)</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">Both</td>
+                            <td style="border: 1px solid #dee2e6; padding: 0.5rem;">High-throughput systems, distributed computing</td>
+                        </tr>
+                    </tbody>
+                </table>
             </section>
         </article>
     </main>
