@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MPMC Queue Interactive Visualization</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            margin: 0;
+            font-size: 2.5em;
+        }
+
+        .header p {
+            color: #718096;
+            font-size: 1.1em;
+            margin: 10px 0 0 0;
+        }
+
+        .visualization-container {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .queue-display {
+            flex: 2;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .controls {
+            flex: 1;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .queue-buffer {
+            margin-bottom: 20px;
+        }
+
+        .buffer-slots {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+            justify-content: center;
+        }
+
+        .slot {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #cbd5e0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            background: white;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .slot.reserved-producer {
+            background: #fed7d7;
+            border-color: #f56565;
+            color: #c53030;
+        }
+
+        .slot.ready-producer {
+            background: #c6f6d5;
+            border-color: #38a169;
+            color: #2f855a;
+        }
+
+        .slot.reserved-consumer {
+            background: #bee3f8;
+            border-color: #4299e1;
+            color: #3182ce;
+        }
+
+        .slot.consumed {
+            background: #e6fffa;
+            border-color: #38b2ac;
+            color: #2d7d79;
+        }
+
+        .indices {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .index-display {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .index-label {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .index-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .index-display.producer {
+            border-color: #f56565;
+        }
+
+        .index-display.consumer {
+            border-color: #4299e1;
+        }
+
+        .thread-controls {
+            margin-bottom: 25px;
+        }
+
+        .thread-group {
+            margin-bottom: 20px;
+        }
+
+        .thread-group h3 {
+            color: #2d3748;
+            margin: 0 0 10px 0;
+            font-size: 1.2em;
+        }
+
+        .thread-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .thread-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.2s ease;
+            min-width: 80px;
+        }
+
+        .producer-btn {
+            background: #fed7d7;
+            color: #c53030;
+            border: 2px solid #f56565;
+        }
+
+        .producer-btn:hover:not(:disabled) {
+            background: #feb2b2;
+        }
+
+        .consumer-btn {
+            background: #bee3f8;
+            color: #3182ce;
+            border: 2px solid #4299e1;
+        }
+
+        .consumer-btn:hover:not(:disabled) {
+            background: #90cdf4;
+        }
+
+        .thread-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .controls h3 {
+            color: #2d3748;
+            margin: 0 0 15px 0;
+            font-size: 1.3em;
+        }
+
+        .control-btn {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 6px;
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .control-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .control-btn:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status h4 {
+            margin: 0 0 10px 0;
+            color: #2d3748;
+        }
+
+        .operation-log {
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .log-producer {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .log-consumer {
+            background: #bee3f8;
+            color: #3182ce;
+        }
+
+        .log-success {
+            background: #c6f6d5;
+            color: #2f855a;
+        }
+
+        .log-error {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .legend {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid #cbd5e0;
+        }
+
+        .explanation {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .explanation h3 {
+            color: #2d3748;
+            margin: 0 0 15px 0;
+        }
+
+        .explanation ul {
+            color: #4a5568;
+            line-height: 1.6;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .back-link:hover {
+            background: #5a6fd8;
+        }
+
+        @media (max-width: 768px) {
+            .visualization-container {
+                flex-direction: column;
+            }
+            
+            .buffer-slots {
+                flex-wrap: wrap;
+            }
+            
+            .slot {
+                width: 50px;
+                height: 50px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔄 MPMC Queue Interactive Visualization</h1>
+            <p>Explore the Four-Index Protocol with Tagged Pointers and ABA Protection</p>
+        </div>
+
+        <div class="visualization-container">
+            <div class="queue-display">
+                <div class="queue-buffer">
+                    <h3>Queue Buffer (Capacity: 8)</h3>
+                    <div class="buffer-slots" id="buffer-slots">
+                        <!-- Slots will be generated by JavaScript -->
+                    </div>
+                    
+                    <div class="indices">
+                        <div class="index-display producer">
+                            <div class="index-label">Producer Head</div>
+                            <div class="index-value" id="producer-head">0:0</div>
+                        </div>
+                        <div class="index-display producer">
+                            <div class="index-label">Producer Tail</div>
+                            <div class="index-value" id="producer-tail">0</div>
+                        </div>
+                        <div class="index-display consumer">
+                            <div class="index-label">Consumer Head</div>
+                            <div class="index-value" id="consumer-head">0:0</div>
+                        </div>
+                        <div class="index-display consumer">
+                            <div class="index-label">Consumer Tail</div>
+                            <div class="index-value" id="consumer-tail">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fed7d7; border-color: #f56565;"></div>
+                        <span>Producer Reserved</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #c6f6d5; border-color: #38a169;"></div>
+                        <span>Producer Ready</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #bee3f8; border-color: #4299e1;"></div>
+                        <span>Consumer Reserved</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #e6fffa; border-color: #38b2ac;"></div>
+                        <span>Consumed</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <h3>Thread Operations</h3>
+                
+                <div class="thread-controls">
+                    <div class="thread-group">
+                        <h3>Producers</h3>
+                        <div class="thread-buttons">
+                            <button class="thread-btn producer-btn" onclick="enqueue('P1', 'Data1')">Producer 1</button>
+                            <button class="thread-btn producer-btn" onclick="enqueue('P2', 'Data2')">Producer 2</button>
+                            <button class="thread-btn producer-btn" onclick="enqueue('P3', 'Data3')">Producer 3</button>
+                        </div>
+                    </div>
+                    
+                    <div class="thread-group">
+                        <h3>Consumers</h3>
+                        <div class="thread-buttons">
+                            <button class="thread-btn consumer-btn" onclick="dequeue('C1')">Consumer 1</button>
+                            <button class="thread-btn consumer-btn" onclick="dequeue('C2')">Consumer 2</button>
+                            <button class="thread-btn consumer-btn" onclick="dequeue('C3')">Consumer 3</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="control-btn" onclick="reset()">Reset Queue</button>
+                <button class="control-btn" onclick="autoDemo()">Auto Demo</button>
+                
+                <div class="status">
+                    <h4>Operation Log</h4>
+                    <div class="operation-log" id="operation-log">
+                        <div class="log-entry">Queue initialized with capacity 8</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h3>How MPMC Queue Works</h3>
+            <ul>
+                <li><strong>Four Indices:</strong> Producer head/tail manage production, consumer head/tail manage consumption</li>
+                <li><strong>Tagged Pointers:</strong> Format "index:tag" prevents ABA problems by including version numbers</li>
+                <li><strong>Atomic Reservation:</strong> CAS operations atomically reserve slots for exclusive access</li>
+                <li><strong>Ordered Completion:</strong> Tail advancement ensures FIFO order despite parallel operations</li>
+                <li><strong>Race-Free Design:</strong> No thread can interfere with another's reserved slot</li>
+            </ul>
+        </div>
+
+        <a href="designing-queue-data-structure.html" class="back-link">← Back to Queue Design Blog</a>
+    </div>
+
+    <!-- D3.js Library -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <script>
+        // MPMC Queue Simulation State
+        const CAPACITY = 8;
+        let producerHead = { index: 0, tag: 0 };
+        let producerTail = 0;
+        let consumerHead = { index: 0, tag: 0 };
+        let consumerTail = 0;
+        let buffer = new Array(CAPACITY + 1).fill(null);
+        let slotStates = new Array(CAPACITY + 1).fill('empty');
+        let operations = [];
+
+        // Initialize the visualization
+        function init() {
+            createSlots();
+            updateDisplay();
+            logOperation('Queue initialized with capacity ' + CAPACITY, 'info');
+        }
+
+        // Create buffer slots
+        function createSlots() {
+            const slotsContainer = document.getElementById('buffer-slots');
+            slotsContainer.innerHTML = '';
+            
+            for (let i = 0; i <= CAPACITY; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'slot';
+                slot.id = `slot-${i}`;
+                slot.innerHTML = `<div>${i}</div>`;
+                slotsContainer.appendChild(slot);
+            }
+        }
+
+        // Update visual display
+        function updateDisplay() {
+            // Update slots
+            for (let i = 0; i <= CAPACITY; i++) {
+                const slot = document.getElementById(`slot-${i}`);
+                slot.className = 'slot';
+                
+                if (slotStates[i] === 'producer-reserved') {
+                    slot.classList.add('reserved-producer');
+                } else if (slotStates[i] === 'producer-ready') {
+                    slot.classList.add('ready-producer');
+                } else if (slotStates[i] === 'consumer-reserved') {
+                    slot.classList.add('reserved-consumer');
+                } else if (slotStates[i] === 'consumed') {
+                    slot.classList.add('consumed');
+                }
+                
+                // Show data if present
+                if (buffer[i]) {
+                    slot.innerHTML = `<div>${i}</div><div style="font-size:10px;">${buffer[i]}</div>`;
+                } else {
+                    slot.innerHTML = `<div>${i}</div>`;
+                }
+            }
+
+            // Update indices display
+            document.getElementById('producer-head').textContent = `${producerHead.index}:${producerHead.tag}`;
+            document.getElementById('producer-tail').textContent = producerTail;
+            document.getElementById('consumer-head').textContent = `${consumerHead.index}:${consumerHead.tag}`;
+            document.getElementById('consumer-tail').textContent = consumerTail;
+        }
+
+        // Check if queue is full
+        function isFull() {
+            return (producerHead.index + 1) % (CAPACITY + 1) === consumerTail;
+        }
+
+        // Check if queue is empty
+        function isEmpty() {
+            return consumerHead.index === producerTail;
+        }
+
+        // Enqueue operation (producer)
+        function enqueue(producerId, data) {
+            if (isFull()) {
+                logOperation(`${producerId}: Queue full, enqueue failed`, 'error');
+                return;
+            }
+
+            // Step 1: Atomically reserve slot (CAS simulation)
+            const reservedIndex = producerHead.index;
+            producerHead.index = (producerHead.index + 1) % (CAPACITY + 1);
+            producerHead.tag++;
+
+            logOperation(`${producerId}: Reserved slot ${reservedIndex}`, 'producer');
+
+            // Step 2: Write data to reserved slot
+            setTimeout(() => {
+                buffer[reservedIndex] = data;
+                slotStates[reservedIndex] = 'producer-ready';
+                updateDisplay();
+                
+                logOperation(`${producerId}: Wrote "${data}" to slot ${reservedIndex}`, 'producer');
+
+                // Step 3: Advance producer tail if we're next in line
+                setTimeout(() => {
+                    if (producerTail === reservedIndex) {
+                        producerTail = (producerTail + 1) % (CAPACITY + 1);
+                        updateDisplay();
+                        logOperation(`${producerId}: Advanced producer_tail to ${producerTail}`, 'success');
+                    }
+                }, 200);
+            }, 300);
+
+            slotStates[reservedIndex] = 'producer-reserved';
+            updateDisplay();
+        }
+
+        // Dequeue operation (consumer)
+        function dequeue(consumerId) {
+            if (isEmpty()) {
+                logOperation(`${consumerId}: Queue empty, dequeue failed`, 'error');
+                return;
+            }
+
+            // Step 1: Atomically reserve slot (CAS simulation)
+            const reservedIndex = consumerHead.index;
+            consumerHead.index = (consumerHead.index + 1) % (CAPACITY + 1);
+            consumerHead.tag++;
+
+            logOperation(`${consumerId}: Reserved slot ${reservedIndex}`, 'consumer');
+
+            // Step 2: Read data from reserved slot
+            setTimeout(() => {
+                const data = buffer[reservedIndex];
+                slotStates[reservedIndex] = 'consumed';
+                updateDisplay();
+                
+                logOperation(`${consumerId}: Read "${data}" from slot ${reservedIndex}`, 'consumer');
+
+                // Step 3: Advance consumer tail if we're next in line
+                setTimeout(() => {
+                    if (consumerTail === reservedIndex) {
+                        consumerTail = (consumerTail + 1) % (CAPACITY + 1);
+                        buffer[reservedIndex] = null;
+                        slotStates[reservedIndex] = 'empty';
+                        updateDisplay();
+                        logOperation(`${consumerId}: Advanced consumer_tail to ${consumerTail}`, 'success');
+                    }
+                }, 200);
+            }, 300);
+
+            slotStates[reservedIndex] = 'consumer-reserved';
+            updateDisplay();
+        }
+
+        // Log operation
+        function logOperation(message, type = 'info') {
+            const log = document.getElementById('operation-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+
+            // Keep only last 50 entries
+            if (log.children.length > 50) {
+                log.removeChild(log.firstChild);
+            }
+        }
+
+        // Reset queue
+        function reset() {
+            producerHead = { index: 0, tag: 0 };
+            producerTail = 0;
+            consumerHead = { index: 0, tag: 0 };
+            consumerTail = 0;
+            buffer = new Array(CAPACITY + 1).fill(null);
+            slotStates = new Array(CAPACITY + 1).fill('empty');
+            
+            updateDisplay();
+            document.getElementById('operation-log').innerHTML = '<div class="log-entry">Queue reset to initial state</div>';
+        }
+
+        // Automated demo
+        async function autoDemo() {
+            reset();
+            
+            const demo = [
+                () => { enqueue('P1', 'MSG1'); },
+                () => { enqueue('P2', 'MSG2'); },
+                () => { dequeue('C1'); },
+                () => { enqueue('P3', 'MSG3'); },
+                () => { dequeue('C2'); },
+                () => { dequeue('C3'); },
+                () => { enqueue('P1', 'MSG4'); },
+                () => { enqueue('P2', 'MSG5'); },
+                () => { dequeue('C1'); },
+                () => { dequeue('C2'); }
+            ];
+
+            for (let i = 0; i < demo.length; i++) {
+                setTimeout(demo[i], i * 1500);
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
