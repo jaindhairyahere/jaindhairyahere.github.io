@@ -12,8 +12,8 @@
     <style>
         /* Override any parent container width constraints */
         .blog-post {
-            max-width: 1400px !important;
-            width: 92% !important;
+            max-width: 95% !important;
+            width: 95% !important;
             margin: 1.5rem auto;
             padding: 1rem;
             background-color: #fff;
@@ -30,8 +30,8 @@
         
         /* Override the main container width for this blog post - parent CSS sets 800px */
         main {
-            max-width: 1500px !important;
-            width: 96% !important;
+            max-width: 98% !important;
+            width: 98% !important;
             margin: 100px auto 3rem auto !important;
             padding: 2rem !important;
         }
@@ -49,6 +49,127 @@
         
         .mermaid {
             max-width: none !important;
+        }
+        
+        /* Responsive breakpoints for better mobile experience */
+        @media (max-width: 768px) {
+            main {
+                width: 95% !important;
+                padding: 1rem !important;
+            }
+            .blog-post {
+                width: 92% !important;
+                padding: 0.5rem;
+            }
+        }
+        
+        @media (min-width: 1920px) {
+            /* For very wide screens, add some reasonable max constraint */
+            main {
+                max-width: 1800px !important;
+            }
+            .blog-post {
+                max-width: 1700px !important;
+            }
+        }
+        
+        /* Hamburger Menu Styles */
+        .navbar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            flex-direction: column;
+            cursor: pointer;
+            padding: 8px;
+            margin-left: auto;
+        }
+        
+        .hamburger-line {
+            width: 25px;
+            height: 3px;
+            background-color: #333;
+            margin: 3px 0;
+            transition: 0.3s;
+            border-radius: 2px;
+        }
+        
+        /* Mobile navigation styles */
+        @media (max-width: 768px) {
+            main {
+                width: 95% !important;
+                padding: 1rem !important;
+            }
+            .blog-post {
+                width: 92% !important;
+                padding: 0.5rem;
+            }
+            
+            /* Show hamburger menu on mobile */
+            .navbar-toggle {
+                display: flex;
+            }
+            
+            /* Position navbar properly */
+            .navbar {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                position: relative;
+            }
+            
+            /* Hide nav menu by default on mobile */
+            .navbar-nav {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background-color: #fff;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                border-radius: 8px;
+                margin-top: 10px;
+                z-index: 1000;
+            }
+            
+            /* Show nav menu when toggled */
+            .navbar-nav.show {
+                display: block;
+            }
+            
+            /* Stack nav items vertically on mobile */
+            .navbar-nav ul {
+                flex-direction: column;
+                padding: 1rem 0;
+                margin: 0;
+            }
+            
+            .navbar-nav li {
+                margin: 0;
+                text-align: center;
+            }
+            
+            .navbar-nav .nav-link {
+                display: block;
+                padding: 12px 20px;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            
+            .navbar-nav li:last-child .nav-link {
+                border-bottom: none;
+            }
+            
+            /* Animate hamburger lines when active */
+            .navbar-toggle.active .hamburger-line:nth-child(1) {
+                transform: rotate(-45deg) translate(-6px, 6px);
+            }
+            
+            .navbar-toggle.active .hamburger-line:nth-child(2) {
+                opacity: 0;
+            }
+            
+            .navbar-toggle.active .hamburger-line:nth-child(3) {
+                transform: rotate(45deg) translate(-6px, -6px);
+            }
         }
         .blog-post h1, .blog-post h2, .blog-post h3 {
             color: #333;
@@ -139,7 +260,15 @@
             <div class="navbar-brand">
                 <h1><a href="../index.html" class="brand-link">Dhairya Jain</a></h1>
             </div>
-            <nav class="navbar-nav">
+            
+            <!-- Hamburger menu button for mobile -->
+            <button class="navbar-toggle" id="navbarToggle" aria-label="Toggle navigation">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+            
+            <nav class="navbar-nav" id="navbarNav">
                 <ul>
                     <li><a href="../index.html#about" class="nav-link">About Me</a></li>
                     <li><a href="../index.html#experience" class="nav-link">Experience</a></li>
@@ -2037,6 +2166,41 @@ do {
                 lineColor: '#718096',
                 secondaryColor: '#e2e8f0',
                 tertiaryColor: '#f7fafc'
+            }
+        });
+    </script>
+    
+    <!-- Hamburger Menu JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const navbarToggle = document.getElementById('navbarToggle');
+            const navbarNav = document.getElementById('navbarNav');
+            
+            if (navbarToggle && navbarNav) {
+                navbarToggle.addEventListener('click', function() {
+                    // Toggle the active class on the hamburger button
+                    navbarToggle.classList.toggle('active');
+                    
+                    // Toggle the show class on the navigation menu
+                    navbarNav.classList.toggle('show');
+                });
+                
+                // Close menu when clicking outside
+                document.addEventListener('click', function(event) {
+                    if (!event.target.closest('.navbar')) {
+                        navbarToggle.classList.remove('active');
+                        navbarNav.classList.remove('show');
+                    }
+                });
+                
+                // Close menu when clicking on a nav link
+                const navLinks = navbarNav.querySelectorAll('.nav-link');
+                navLinks.forEach(link => {
+                    link.addEventListener('click', function() {
+                        navbarToggle.classList.remove('active');
+                        navbarNav.classList.remove('show');
+                    });
+                });
             }
         });
     </script>

@@ -369,11 +369,41 @@ a:hover {
     text-decoration: underline;
 }
 
+/* Hamburger Menu Styles */
+.navbar-toggle {
+    display: none;
+    background: none;
+    border: none;
+    flex-direction: column;
+    cursor: pointer;
+    padding: 8px;
+    margin-left: auto;
+}
+
+.hamburger-line {
+    width: 25px;
+    height: 3px;
+    background-color: #333;
+    margin: 3px 0;
+    transition: 0.3s;
+    border-radius: 2px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
+    /* Show hamburger menu on mobile */
+    .navbar-toggle {
+        display: flex;
+    }
+    
+    /* Position navbar properly */
     .navbar {
-        flex-direction: column;
-        gap: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        flex-direction: row !important;
+        gap: 0;
         padding: 0 1rem;
     }
     
@@ -381,15 +411,62 @@ a:hover {
         font-size: 1.6rem;
     }
     
-    .navbar-nav ul {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 0.3rem;
+    /* Hide nav menu by default on mobile */
+    .navbar-nav {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: #fff;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        margin-top: 10px;
+        z-index: 1000;
     }
     
-    .navbar-nav ul li a {
-        padding: 0.5rem 0.8rem;
-        font-size: 0.85rem;
+    /* Show nav menu when toggled */
+    .navbar-nav.show {
+        display: block;
+    }
+    
+    /* Stack nav items vertically on mobile */
+    .navbar-nav ul {
+        flex-direction: column;
+        padding: 1rem 0;
+        margin: 0;
+        gap: 0;
+        flex-wrap: nowrap;
+        justify-content: stretch;
+    }
+    
+    .navbar-nav li {
+        margin: 0;
+        text-align: center;
+    }
+    
+    .navbar-nav .nav-link {
+        display: block;
+        padding: 12px 20px;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.9rem;
+    }
+    
+    .navbar-nav li:last-child .nav-link {
+        border-bottom: none;
+    }
+    
+    /* Animate hamburger lines when active */
+    .navbar-toggle.active .hamburger-line:nth-child(1) {
+        transform: rotate(-45deg) translate(-6px, 6px);
+    }
+    
+    .navbar-toggle.active .hamburger-line:nth-child(2) {
+        opacity: 0;
+    }
+    
+    .navbar-toggle.active .hamburger-line:nth-child(3) {
+        transform: rotate(45deg) translate(-6px, -6px);
     }
     
     main {
