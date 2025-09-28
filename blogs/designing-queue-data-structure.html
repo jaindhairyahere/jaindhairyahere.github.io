@@ -1456,19 +1456,126 @@ int main() {
                 <h3>Key MPMC Concepts Demonstrated:</h3>
                 
                 <h4>1. The ABA Problem</h4>
-                <p>When thread A reads a value, gets interrupted, and another thread B changes and then restores the same value, thread A's CAS succeeds incorrectly:</p>
+                <p>The ABA problem is one of the most insidious bugs in lock-free programming. It occurs when a Compare-And-Swap (CAS) operation succeeds even though the data structure has been modified by other threads in between the read and CAS operations.</p>
                 
-                <pre><code class="language-c">// ABA Problem Example:
-// Time 1: Thread A reads head.index = 5
-// Time 2: Thread B dequeues item (head becomes 6)  
-// Time 3: Thread B enqueues item (head becomes 5 again!)
-// Time 4: Thread A's CAS(5, 6) succeeds incorrectly!
+                <p><strong>Why it's called "ABA":</strong> Thread reads value A, other threads change it to B then back to A, original thread's CAS still succeeds thinking nothing changed.</p>
 
-// Solution: Tagged Pointers
+                <h5>Detailed ABA Problem Scenario:</h5>
+                <pre><code class="language-c">// Initial state: Queue with head pointing to Node A
+// Queue: [A] -> [B] -> [C] -> NULL
+// head = ptr_to_A
+
+// === Timeline of the ABA Problem ===
+
+// Time 1: Thread 1 (Consumer) reads head
+Thread1: old_head = head;  // old_head points to Node A
+Thread1: next = old_head->next;  // next points to Node B
+
+// Time 2: Thread 1 gets interrupted, Thread 2 takes over
+Thread2: dequeue();  // Removes A, head now points to B
+// Queue: [B] -> [C] -> NULL
+// head = ptr_to_B
+
+// Time 3: Thread 2 continues and does another dequeue  
+Thread2: dequeue();  // Removes B, head now points to C
+// Queue: [C] -> NULL
+// head = ptr_to_C
+
+// Time 4: Thread 2 enqueues Node A back (reusing memory!)
+Thread2: enqueue(A);  // A gets reused with same address!
+// Queue: [A] -> [C] -> NULL  
+// head = ptr_to_A (SAME ADDRESS AS TIME 1!)
+
+// Time 5: Thread 1 resumes and performs CAS
+Thread1: CAS(&head, old_head, next);  // CAS(ptr_to_A, ptr_to_B)
+// This SUCCEEDS because head is again ptr_to_A!
+// But next still points to old Node B which is now INVALID!
+
+// DISASTER: head now points to deallocated/reused memory!</code></pre>
+
+                <p><strong>Why this is catastrophic:</strong></p>
+                <ul>
+                    <li><strong>Memory Corruption:</strong> Pointer now references deallocated/reused memory</li>
+                    <li><strong>Silent Failure:</strong> CAS succeeds, no error indication</li>
+                    <li><strong>Unpredictable Behavior:</strong> May crash immediately or corrupt data silently</li>
+                    <li><strong>Extremely Hard to Debug:</strong> Race condition only occurs under specific timing</li>
+                </ul>
+
+                <h5>Real-World ABA Problem in Queue Context:</h5>
+                <pre><code class="language-c">// Dangerous MPMC dequeue without ABA protection
+queue_result_t dangerous_dequeue(queue_t* queue, queue_data_t* data) {
+    size_t current_head, next_head;
+    
+    do {
+        current_head = atomic_load(&queue->consumer_head);
+        
+        if (current_head == queue->producer_tail) {
+            return QUEUE_EMPTY;
+        }
+        
+        next_head = (current_head + 1) % queue->capacity;
+        
+        // DANGER: ABA problem can occur here!
+        // Between load and CAS, current_head index might be reused
+        
+    } while (!CAS(&queue->consumer_head, current_head, next_head));
+    
+    *data = queue->buffer[current_head];  // Might read wrong data!
+    return QUEUE_SUCCESS;
+}</code></pre>
+
+                <h5>Solution: Tagged Pointers</h5>
+                <p>The solution is to use tagged pointers that include a version counter that always increments:</p>
+
+                <pre><code class="language-c">// ABA-Safe Tagged Pointer Structure
 typedef struct {
     size_t index;  // Actual index value
-    size_t tag;    // Version counter - always increments
-} tagged_index_t;</code></pre>
+    size_t tag;    // Version counter - ALWAYS increments
+} tagged_index_t;
+
+// ABA-Safe MPMC dequeue
+queue_result_t safe_dequeue(queue_t* queue, queue_data_t* data) {
+    tagged_index_t current_head, new_head;
+    
+    do {
+        current_head = atomic_load(&queue->consumer_head);
+        
+        if (current_head.index == queue->producer_tail) {
+            return QUEUE_EMPTY;
+        }
+        
+        // Create new tagged pointer with incremented version
+        new_head.index = (current_head.index + 1) % queue->capacity;
+        new_head.tag = current_head.tag + 1;  // KEY: Always increment!
+        
+        // Even if index becomes same value, tag will be different
+        // CAS will fail if any other thread modified the head
+        
+    } while (!CAS(&queue->consumer_head, current_head, new_head));
+    
+    *data = queue->buffer[current_head.index];
+    return QUEUE_SUCCESS;
+}</code></pre>
+
+                <p><strong>How Tagged Pointers Prevent ABA:</strong></p>
+                <ul>
+                    <li><strong>Version Tracking:</strong> Tag increments on every modification</li>
+                    <li><strong>Unique Identity:</strong> Same index + different tag = different pointer</li>
+                    <li><strong>CAS Protection:</strong> CAS fails if either index OR tag differs</li>
+                    <li><strong>Memory Safety:</strong> Prevents accessing stale/reused memory locations</li>
+                </ul>
+
+                <h5>Alternative ABA Solutions:</h5>
+                <div class="note">
+                    <p><strong>Other approaches to ABA prevention:</strong></p>
+                    <ul>
+                        <li><strong>Epoch-Based Memory Management:</strong> Delay memory reclamation until all threads have progressed</li>
+                        <li><strong>Hazard Pointers:</strong> Threads declare which pointers they're accessing</li>
+                        <li><strong>RCU (Read-Copy-Update):</strong> Separate read and update phases with grace periods</li>
+                        <li><strong>Double-Width CAS:</strong> Use 128-bit CAS on 64-bit systems for pointer+counter</li>
+                    </ul>
+                    <p>Tagged pointers are the most practical solution for our queue implementation.</p>
+                </div>
 
                 <h4>2. Four-Index Protocol</h4>
                 <p>MPMC requires four indices to handle concurrent producers and consumers:</p>
