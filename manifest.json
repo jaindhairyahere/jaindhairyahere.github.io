@@ -1,0 +1,48 @@
+{
+  "short_name": "CalorieTracker",
+  "name": "CalorieTracker - Smart Nutrition Logging",
+  "description": "Smart calorie tracking with ML-powered insights, photo logging, and automatic meal categorization",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "icon-512.png", 
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#667eea",
+  "background_color": "#ffffff",
+  "categories": ["health", "lifestyle", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Quick Add",
+      "short_name": "Quick Add",
+      "description": "Quickly log food calories",
+      "url": "/?action=quick-add",
+      "icons": [{ "src": "favicon.ico", "sizes": "96x96" }]
+    },
+    {
+      "name": "Take Photo",
+      "short_name": "Photo",
+      "description": "Log food with photo",
+      "url": "/?action=photo",
+      "icons": [{ "src": "favicon.ico", "sizes": "96x96" }]
+    }
+  ],
+  "scope": "/",
+  "lang": "en"
+}
