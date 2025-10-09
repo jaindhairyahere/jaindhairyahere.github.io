@@ -336,7 +336,7 @@ queue_t* queue_create(const char* type, size_t capacity) {
 // ============================================================================
 // EXAMPLE USAGE AND TESTING
 // ============================================================================
-// #define QUEUE_EXAMPLE
+
 #ifdef QUEUE_EXAMPLE
 
 #include <pthread.h>
