@@ -1,0 +1,66 @@
+# Expense Tracker — containerized deployment.
+#
+# Topology (ngrok-safe):
+#   internet -> ngrok edge (Google OAuth gate / IP allowlist)
+#            -> ngrok agent on host (tunnels to 127.0.0.1:8000)
+#            -> web container (published to loopback ONLY)
+#            -> db container (internal network only)
+#
+# The web port is bound to 127.0.0.1 so it is never exposed on your LAN.
+# Run the ngrok agent on the host:  ngrok http 127.0.0.1:8000
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: expense
+      POSTGRES_USER: expense
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U expense"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DJANGO_DEBUG: "False"
+      DATABASE_URL: postgres://expense:${POSTGRES_PASSWORD:-change-me}@db:5432/expense
+      # Served behind ngrok's TLS edge: trust the forwarded proto so Django
+      # treats requests as secure (secure cookies stay ON by default).
+      DJANGO_SECURE_PROXY: "True"
+      # Optional admin bootstrap: set DJANGO_SUPERUSER_USERNAME / _EMAIL /
+      # _PASSWORD in backend/.env on the worker device to auto-create one.
+      # (Friends sign in with Google; an admin is only for you.)
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             (python manage.py createsuperuser --noinput 2>/dev/null || true) &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60 --access-logfile -"
+    ports:
+      # Loopback only — reachable via the ngrok agent on the host, not the LAN.
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # ── Hardening ──────────────────────────────────────────────────────
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 512m
+
+volumes:
+  pgdata:

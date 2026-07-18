@@ -1,0 +1,19 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+db.sqlite3
+db.sqlite3-*
+staticfiles/
+media/
+
+# Secrets — never bake into the image
+.env
+
+# Dev / VCS
+.git/
+.gitignore
+*.md
+.vscode/
+.idea/
