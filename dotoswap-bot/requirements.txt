@@ -1,0 +1,5 @@
+requests>=2.31
+plyer>=2.1
+python-dotenv>=1.0
+# Optional Windows-only toast fallback; safe to omit.
+win10toast>=0.9 ; sys_platform == "win32"
